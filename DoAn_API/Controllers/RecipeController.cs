@@ -98,16 +98,22 @@ namespace DoAn_API.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteRecipe(int id)
         {
-            var recipe = await _context.Recipes.FindAsync(id);
+            var recipe = await _context.Recipes
+                .Include(r => r.Comments)
+                .FirstOrDefaultAsync(r => r.Id == id);
+
             if (recipe == null) return NotFound();
 
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var isAdmin = User.IsInRole("Admin");
+            if (recipe.UserId != userId && !User.IsInRole("Admin")) return Forbid();
 
-            // Chỉ chủ sở hữu công thức hoặc Admin mới có quyền xóa
-            if (recipe.UserId != userId && !isAdmin)
+            // Xóa tương tác và bình luận trước 
+            var activities = _context.UserActivities.Where(ua => ua.RecipeId == id);
+            _context.UserActivities.RemoveRange(activities);
+
+            if (recipe.Comments != null && recipe.Comments.Any())
             {
-                return Forbid();
+                _context.Comments.RemoveRange(recipe.Comments);
             }
 
             _context.Recipes.Remove(recipe);

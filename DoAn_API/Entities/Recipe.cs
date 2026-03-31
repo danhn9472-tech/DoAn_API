@@ -14,13 +14,16 @@ namespace DoAn_API.Entities
         public double TotalProtein { get; set; }
         public double TotalFat { get; set; }
         public double TotalCarbs { get; set; }
+        public int VoteCount { get; set; } = 0;
+        public int SaveCount { get; set; } = 0;
 
         [Required]
         public string UserId { get; set; }
         [ForeignKey("UserId")]
         public virtual ApplicationUser User { get; set; }
+        public virtual ICollection<Comment> Comments { get; set; }
 
         public virtual ICollection<RecipeIngredient> RecipeIngredients { get; set; }
-        public virtual ICollection<RecipeStep> RecipeSteps { get; set; } // Đã đổi tên
+        public virtual ICollection<RecipeStep> RecipeSteps { get; set; } 
     }
 }

@@ -57,13 +57,18 @@ namespace DoAn_API.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteTip(int id)
         {
-            var tip = await _context.Tips.FindAsync(id);
+            var tip = await _context.Tips.Include(t => t.Comments).FirstOrDefaultAsync(t => t.Id == id);
             if (tip == null) return NotFound();
 
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (tip.UserId != userId && !User.IsInRole("Admin"))
+            if (tip.UserId != userId && !User.IsInRole("Admin")) return Forbid();
+
+            var activities = _context.UserActivities.Where(ua => ua.TipId == id);
+            _context.UserActivities.RemoveRange(activities);
+
+            if (tip.Comments != null && tip.Comments.Any())
             {
-                return Forbid();
+                _context.Comments.RemoveRange(tip.Comments);
             }
 
             _context.Tips.Remove(tip);

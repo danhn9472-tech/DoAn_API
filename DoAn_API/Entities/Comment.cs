@@ -3,29 +3,25 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace DoAn_API.Entities
 {
-    public class Tip
+    public class Comment
     {
         [Key]
         public int Id { get; set; }
-
-        [Required]
-        [StringLength(300)]
-        public string Title { get; set; }
-
         [Required]
         public string Content { get; set; }
-
-        public string? ImageUrl { get; set; }
-
         public DateTime CreatedAt { get; set; } = DateTime.Now;
-        public int VoteCount { get; set; } = 0;
-        public int SaveCount { get; set; } = 0;
-        // Khóa ngoại liên kết với người dùng
+
         [Required]
         public string UserId { get; set; }
-
         [ForeignKey("UserId")]
         public virtual ApplicationUser User { get; set; }
-        public virtual ICollection<Comment> Comments { get; set; }
+
+        public int? RecipeId { get; set; }
+        [ForeignKey("RecipeId")]
+        public virtual Recipe? Recipe { get; set; }
+
+        public int? TipId { get; set; }
+        [ForeignKey("TipId")]
+        public virtual Tip? Tip { get; set; }
     }
 }
