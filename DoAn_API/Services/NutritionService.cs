@@ -1,18 +1,18 @@
-﻿using DoAn_API.Entities;
+﻿using DoAn_API.Data;
+using DoAn_API.Entities;
+using Microsoft.EntityFrameworkCore;
 namespace DoAn_API.Services
 {
     public class NutritionService
     {
-        private readonly Dictionary<string, (double Cal, double Pro, double Fat, double Carb)> _ingredientLibrary = new()
-        {
-            { "Ức gà", (165, 31, 3.6, 0) },
-            { "Trứng", (155, 13, 11, 1.1) },
-            { "Thịt bò", (250, 26, 15, 0) },
-            { "Gạo", (130, 2.7, 0.3, 28) },
-            { "Sữa tươi", (42, 3.4, 1, 5) }
-        };
+        private readonly ApplicationDbContext _context;
 
-        public void Calc(Recipe recipe) 
+        public NutritionService(ApplicationDbContext context)
+        {
+            _context = context;
+        }
+
+        public async Task CalculateTotalNutritionAsync(Recipe recipe)
         {
             double totalCalories = 0;
             double totalProtein = 0;
@@ -23,24 +23,27 @@ namespace DoAn_API.Services
             {
                 foreach (var item in recipe.RecipeIngredients)
                 {
-                    // Tìm kiếm gần đúng tên nguyên liệu trong thư viện
-                    var nutrition = _ingredientLibrary.FirstOrDefault(x => 
-                        item.IngredientName.Contains(x.Key, StringComparison.OrdinalIgnoreCase)); 
-                    if (nutrition.Key != null)
-                    {
-                        // Tính toán dựa trên đơn vị 'g' hoặc 'ml' (giả định 1ml = 1g cho đơn giản) [cite: 55, 56]
-                        double ratio = item.Amount / 100.0; 
+                    // Dò tìm nguyên liệu trong Database dựa trên tên người dùng nhập
+                    var nutrition = await _context.IngredientNutritions
+                        .FirstOrDefaultAsync(n => item.IngredientName.ToLower().Contains(n.Name.ToLower())
+                                               || n.Name.ToLower().Contains(item.IngredientName.ToLower()));
 
-                        totalCalories += ratio * nutrition.Value.Cal;
-                        totalProtein += ratio * nutrition.Value.Pro;
-                        totalFat += ratio * nutrition.Value.Fat;
-                        totalCarbs += ratio * nutrition.Value.Carb;
+                    if (nutrition != null)
+                    {
+                        // Tính toán tỷ lệ dựa trên khối lượng 
+                        double ratio = item.Amount / 100.0;
+
+                        totalCalories += ratio * nutrition.Calories;
+                        totalProtein += ratio * nutrition.Protein;
+                        totalFat += ratio * nutrition.Fat;
+                        totalCarbs += ratio * nutrition.Carbs;
                     }
                 }
             }
 
-            recipe.TotalCalories = Math.Round(totalCalories, 2);
-            recipe.TotalProtein = Math.Round(totalProtein, 2);
+            // Lưu kết quả cuối cùng vào Recipe 
+            recipe.TotalCalories = Math.Round(totalCalories, 2); 
+            recipe.TotalProtein = Math.Round(totalProtein, 2); 
             recipe.TotalFat = Math.Round(totalFat, 2);
             recipe.TotalCarbs = Math.Round(totalCarbs, 2);
         }

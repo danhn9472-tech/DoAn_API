@@ -1,6 +1,7 @@
 ﻿using DoAn_API.Data;
 using DoAn_API.DTOs;
 using DoAn_API.Entities;
+using DoAn_API.Entities.Enums;
 using DoAn_API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -27,6 +28,7 @@ namespace DoAn_API.Controllers
         public async Task<ActionResult<IEnumerable<Recipe>>> GetRecipes()
         {
             return await _context.Recipes
+                .Where(r => r.Status == PostStatus.Approved) // CHỈ LẤY BÀI ĐÃ DUYỆT
                 .Include(r => r.RecipeIngredients)
                 .Include(r => r.RecipeSteps)
                 .OrderByDescending(r => r.Id)
@@ -84,8 +86,9 @@ namespace DoAn_API.Controllers
                 }).ToList()
             };
 
-            // Gọi Service tính toán dinh dưỡng (Protein, Calo...)
-            _nutritionService.Calc(recipe);
+            // Gọi Service tính toán 
+            // Đã chuyển sang await để đợi kết quả truy vấn từ bảng IngredientNutritions
+            await _nutritionService.CalculateTotalNutritionAsync(recipe);
 
             _context.Recipes.Add(recipe);
             await _context.SaveChangesAsync();
@@ -93,7 +96,7 @@ namespace DoAn_API.Controllers
             return CreatedAtAction(nameof(GetRecipe), new { id = recipe.Id }, recipe);
         }
 
-        // DELETE: api/Recipes/5
+        // DELETE: api/Recipes
         [Authorize]
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteRecipe(int id)
@@ -105,9 +108,15 @@ namespace DoAn_API.Controllers
             if (recipe == null) return NotFound();
 
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (recipe.UserId != userId && !User.IsInRole("Admin")) return Forbid();
+            var isAdmin = User.IsInRole("Admin");
 
-            // Xóa tương tác và bình luận trước 
+            // Chỉ chủ sở hữu công thức/Admin mới có quyền xóa
+            if (recipe.UserId != userId && !isAdmin)
+            {
+                return Forbid();
+            }
+
+            // Xóa tương tác và bình luận trước
             var activities = _context.UserActivities.Where(ua => ua.RecipeId == id);
             _context.UserActivities.RemoveRange(activities);
 
@@ -120,6 +129,86 @@ namespace DoAn_API.Controllers
             await _context.SaveChangesAsync();
 
             return Ok(new { message = "Xóa công thức thành công." });
+        }
+
+        //Tính toán dinh dưỡng
+        [HttpPost("analyze-nutrition")]
+        public async Task<IActionResult> AnalyzeNutrition([FromBody] AnalyzeRequestDTOs dto)
+        {
+            if (dto.Ingredients == null || !dto.Ingredients.Any())
+            {
+                return BadRequest(new { message = "Danh sách nguyên liệu không được để trống." });
+            }
+
+            //  chứa dữ liệu tính toán
+            var tempRecipe = new Recipe
+            {
+                RecipeIngredients = dto.Ingredients.Select(i => new RecipeIngredient
+                {
+                    IngredientName = i.Name,
+                    Amount = i.Amount,
+                    Unit = i.Unit
+                }).ToList()
+            };
+
+            // Gọi Service 
+            await _nutritionService.CalculateTotalNutritionAsync(tempRecipe);
+
+            // Trả về các chỉ số dinh dưỡng đã tính
+            return Ok(new
+            {
+                calories = tempRecipe.TotalCalories,
+                protein = tempRecipe.TotalProtein,
+                fat = tempRecipe.TotalFat,
+                carbs = tempRecipe.TotalCarbs
+            });
+        }
+
+        [Authorize]
+        [HttpGet("my-recipes")]
+        public async Task<ActionResult<IEnumerable<Recipe>>> GetMyRecipes()
+        {
+            // Lấy ID của người dùng đang đăng nhập
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+            // Lọc UserId
+            var myRecipes = await _context.Recipes
+                .Where(r => r.UserId == userId)
+                .Include(r => r.RecipeIngredients)
+                .Include(r => r.RecipeSteps)
+                .OrderByDescending(r => r.Id)
+                .ToListAsync();
+
+            return Ok(myRecipes);
+        }
+
+        // Lấy danh sách bài viết đang CHỜ DUYỆT (Dành cho Admin)
+        [Authorize(Roles = "Admin")]
+        [HttpGet("pending")]
+        public async Task<ActionResult<IEnumerable<Recipe>>> GetPendingRecipes()
+        {
+            var pendingRecipes = await _context.Recipes
+                .Where(r => r.Status == PostStatus.Pending)
+                .Include(r => r.User)
+                .OrderBy(r => r.Id)
+                .ToListAsync();
+
+            return Ok(pendingRecipes);
+        }
+
+        // Cập nhật trạng thái bài viết (Dành cho Admin)
+        [Authorize(Roles = "Admin")]
+        [HttpPut("{id}/change-status")]
+        public async Task<IActionResult> ChangeRecipeStatus(int id, [FromBody] PostStatus newStatus)
+        {
+            var recipe = await _context.Recipes.FindAsync(id);
+            if (recipe == null) return NotFound(new { message = "Không tìm thấy công thức." });
+
+            recipe.Status = newStatus;
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Đã cập nhật trạng thái bài viết." });
         }
     }
 }

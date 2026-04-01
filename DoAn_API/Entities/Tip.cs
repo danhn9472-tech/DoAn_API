@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using DoAn_API.Entities.Enums;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace DoAn_API.Entities
@@ -27,5 +28,6 @@ namespace DoAn_API.Entities
         [ForeignKey("UserId")]
         public virtual ApplicationUser User { get; set; }
         public virtual ICollection<Comment> Comments { get; set; }
+        public PostStatus Status { get; set; } = PostStatus.Pending;
     }
 }

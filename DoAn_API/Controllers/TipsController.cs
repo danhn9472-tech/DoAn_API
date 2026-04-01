@@ -52,6 +52,29 @@ namespace DoAn_API.Controllers
             return Ok(new { message = "Đăng bài viết thành công!", tipId = tip.Id });
         }
 
+        // Chỉnh sửa bài viết (Chỉ chủ bài viết hoặc Admin)
+        [Authorize]
+        [HttpPut("{id}")]
+        public async Task<IActionResult> PutTip(int id, [FromBody] TipDTOs.CreateTipDto dto)
+        {
+            var tip = await _context.Tips.FindAsync(id);
+            if (tip == null) return NotFound(new { message = "Không tìm thấy bài viết." });
+
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (tip.UserId != userId && !User.IsInRole("Admin"))
+            {
+                return Forbid();
+            }
+
+            tip.Title = dto.Title;
+            tip.Content = dto.Content;
+            tip.ImageUrl = dto.ImageUrl;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Cập nhật bài viết thành công!", tipId = tip.Id });
+        }
+
         // Xóa bài viết (Chỉ chủ bài viết hoặc Admin)
         [Authorize]
         [HttpDelete("{id}")]
@@ -75,6 +98,23 @@ namespace DoAn_API.Controllers
             await _context.SaveChangesAsync();
 
             return Ok(new { message = "Đã xóa bài viết." });
+        }
+
+        [Authorize]
+        [HttpGet("my-tips")]
+        public async Task<ActionResult<IEnumerable<Tip>>> GetMyTips()
+        {
+            // Lấy ID đang đăng nhập
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+            // Lọc UserId
+            var myTips = await _context.Tips
+                .Where(t => t.UserId == userId)
+                .OrderByDescending(t => t.CreatedAt)
+                .ToListAsync();
+
+            return Ok(myTips);
         }
     }
 }
