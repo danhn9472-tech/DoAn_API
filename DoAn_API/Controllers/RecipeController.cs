@@ -25,14 +25,29 @@ namespace DoAn_API.Controllers
 
         // GET: api/Recipes
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Recipe>>> GetRecipes()
+        public async Task<IActionResult> GetRecipes()
         {
-            return await _context.Recipes
-                .Where(r => r.Status == PostStatus.Approved) // CHỈ LẤY BÀI ĐÃ DUYỆT
-                .Include(r => r.RecipeIngredients)
-                .Include(r => r.RecipeSteps)
+            var recipes = await _context.Recipes
+                .Where(r => r.Status == PostStatus.Approved) 
+                .Include(r => r.User) 
                 .OrderByDescending(r => r.Id)
+                .Select(r => new
+                {
+                    Id = r.Id,
+                    Title = r.Title,
+                    Description = r.Description,
+                    ImageUrl = r.ImageUrl,
+                    CookTime = r.CookTime,
+                    TotalCalories = r.TotalCalories,
+                    VoteCount = r.VoteCount,
+                    SaveCount = r.SaveCount,
+                    UserId = r.UserId,
+                    Status = r.Status,
+                    AuthorName = r.User != null ? r.User.FullName : "Đầu bếp gia đình"
+                })
                 .ToListAsync();
+
+            return Ok(recipes);
         }
 
         // GET: api/Recipes/5
@@ -166,18 +181,29 @@ namespace DoAn_API.Controllers
 
         [Authorize]
         [HttpGet("my-recipes")]
-        public async Task<ActionResult<IEnumerable<Recipe>>> GetMyRecipes()
+        public async Task<IActionResult> GetMyRecipes()
         {
-            // Lấy ID của người dùng đang đăng nhập
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
-            // Lọc UserId
             var myRecipes = await _context.Recipes
                 .Where(r => r.UserId == userId)
-                .Include(r => r.RecipeIngredients)
-                .Include(r => r.RecipeSteps)
+                .Include(r => r.User)
                 .OrderByDescending(r => r.Id)
+                .Select(r => new
+                {
+                    Id = r.Id,
+                    Title = r.Title,
+                    Description = r.Description,
+                    ImageUrl = r.ImageUrl,
+                    CookTime = r.CookTime,
+                    TotalCalories = r.TotalCalories,
+                    VoteCount = r.VoteCount,
+                    SaveCount = r.SaveCount,
+                    UserId = r.UserId,
+                    Status = r.Status,
+                    AuthorName = r.User != null ? r.User.FullName : "Đầu bếp gia đình"
+                })
                 .ToListAsync();
 
             return Ok(myRecipes);

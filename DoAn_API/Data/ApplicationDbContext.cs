@@ -15,6 +15,7 @@ namespace DoAn_API.Data
             public DbSet<Comment> Comments { get; set; }
             public DbSet<UserActivity> UserActivities { get; set; }
             public DbSet<IngredientNutrition> IngredientNutritions { get; set; }
+            public DbSet<CommentReport> CommentReports { get; set; }
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
@@ -58,6 +59,20 @@ namespace DoAn_API.Data
                       .WithMany()
                       .HasForeignKey(ua => ua.TipId)
                       .OnDelete(DeleteBehavior.NoAction);
+            });
+
+            //report comment
+            builder.Entity<CommentReport>(entity =>
+            {
+                entity.HasOne(cr => cr.User)
+                      .WithMany()
+                      .HasForeignKey(cr => cr.UserId)
+                      .OnDelete(DeleteBehavior.NoAction);
+
+                entity.HasOne(cr => cr.Comment)
+                      .WithMany()
+                      .HasForeignKey(cr => cr.CommentId)
+                      .OnDelete(DeleteBehavior.NoAction); 
             });
         }
     }

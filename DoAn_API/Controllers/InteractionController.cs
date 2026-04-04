@@ -77,5 +77,36 @@ namespace DoAn_API.Controllers
 
             return Ok(savedRecipes);
         }
+
+        // GỬI BÁO CÁO BÌNH LUẬN
+        [Authorize]
+        [HttpPost("comment/{commentId}/report")]
+        public async Task<IActionResult> ReportComment(int commentId, [FromBody] ReportDTOs.CreateReportDto dto)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            // Kiểm tra bình luận có tồn tại không
+            var comment = await _context.Comments.FindAsync(commentId);
+            if (comment == null) return NotFound(new { message = "Bình luận không tồn tại." });
+
+            // Kiểm tra xem user này đã báo cáo bình luận này chưa (chống spam báo cáo)
+            var existingReport = await _context.CommentReports
+                .FirstOrDefaultAsync(r => r.CommentId == commentId && r.UserId == userId);
+
+            if (existingReport != null)
+                return BadRequest(new { message = "Bạn đã báo cáo bình luận này rồi." });
+
+            var report = new CommentReport
+            {
+                CommentId = commentId,
+                UserId = userId,
+                Reason = dto.Reason
+            };
+
+            _context.CommentReports.Add(report);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Cảm ơn bạn đã báo cáo. Chúng tôi sẽ xem xét sớm nhất." });
+        }
     }
 }

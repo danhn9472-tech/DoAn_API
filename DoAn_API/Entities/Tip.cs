@@ -1,4 +1,5 @@
 ﻿using DoAn_API.Entities.Enums;
+using Microsoft.AspNetCore.Mvc.ModelBinding.Validation;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -24,7 +25,6 @@ namespace DoAn_API.Entities
         // Khóa ngoại liên kết với người dùng
         [Required]
         public string UserId { get; set; }
-
         [ForeignKey("UserId")]
         public virtual ApplicationUser User { get; set; }
         public virtual ICollection<Comment> Comments { get; set; }

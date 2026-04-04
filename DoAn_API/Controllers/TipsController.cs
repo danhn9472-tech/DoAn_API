@@ -1,6 +1,7 @@
 ﻿using DoAn_API.Data;
 using DoAn_API.DTOs;
 using DoAn_API.Entities;
+using DoAn_API.Entities.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -19,14 +20,30 @@ namespace DoAn_API.Controllers
             _context = context;
         }
 
-        // Lấy toàn bộ danh sách bài viết Tip (Công khai)
+        // GET: api/Tips
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Tip>>> GetTips()
+        public async Task<IActionResult> GetTips()
         {
-            return await _context.Tips
-                .Include(t => t.User) // Để hiển thị tên tác giả
+            var tips = await _context.Tips
+                .Where(t => t.Status == PostStatus.Approved) 
+                .Include(t => t.User)
                 .OrderByDescending(t => t.CreatedAt)
+                .Select(t => new
+                {
+                    Id = t.Id,
+                    Title = t.Title,
+                    Content = t.Content,
+                    ImageUrl = t.ImageUrl,
+                    CreatedAt = t.CreatedAt,
+                    VoteCount = t.VoteCount,
+                    SaveCount = t.SaveCount,
+                    UserId = t.UserId,
+                    Status = t.Status,
+                    AuthorName = t.User != null ? t.User.FullName : "Đầu bếp gia đình"
+                })
                 .ToListAsync();
+
+            return Ok(tips);
         }
 
         // Tạo bài viết Tip mới (Yêu cầu đăng nhập)
@@ -102,16 +119,28 @@ namespace DoAn_API.Controllers
 
         [Authorize]
         [HttpGet("my-tips")]
-        public async Task<ActionResult<IEnumerable<Tip>>> GetMyTips()
+        public async Task<IActionResult> GetMyTips()
         {
-            // Lấy ID đang đăng nhập
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
-            // Lọc UserId
             var myTips = await _context.Tips
                 .Where(t => t.UserId == userId)
+                .Include(t => t.User)
                 .OrderByDescending(t => t.CreatedAt)
+                .Select(t => new
+                {
+                    Id = t.Id,
+                    Title = t.Title,
+                    Content = t.Content,
+                    ImageUrl = t.ImageUrl,
+                    CreatedAt = t.CreatedAt,
+                    VoteCount = t.VoteCount,
+                    SaveCount = t.SaveCount,
+                    UserId = t.UserId,
+                    Status = t.Status,
+                    AuthorName = t.User != null ? t.User.FullName : "Đầu bếp ẩn danh"
+                })
                 .ToListAsync();
 
             return Ok(myTips);
