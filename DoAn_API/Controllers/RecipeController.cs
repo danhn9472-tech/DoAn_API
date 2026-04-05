@@ -68,42 +68,89 @@ namespace DoAn_API.Controllers
             return recipe;
         }
 
-        // POST: api/Recipes
-        [Authorize]
+        [Authorize] // Bắt buộc user phải đăng nhập
         [HttpPost]
-        public async Task<ActionResult<Recipe>> PostRecipe([FromBody] RecipeDTOs.CreateRecipeDto dto)
+        public async Task<IActionResult> CreateRecipe([FromBody] RecipeDTOs.CreateRecipeRequestDto dto)
         {
-            // Lấy UserId từ JWT Token của người dùng đang đăng nhập
+            if (dto == null) return BadRequest("Dữ liệu không hợp lệ.");
+
+            // LẤY USER_ID TỪ TOKEN CỦA BẠN CHUẨN XÁC VÀO ĐÂY:
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
-            // Chuyển đổi từ DTO sang Entity
-            var recipe = new Recipe
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
             {
-                Title = dto.Title,
-                Description = dto.Description,
-                CookTime = dto.CookTime,
-                UserId = userId,
-
-                // Map danh sách nguyên liệu
-                RecipeIngredients = dto.Ingredients.Select(i => new RecipeIngredient
+                // 1. Lưu Bảng chính: Recipe
+                var recipe = new Recipe
                 {
-                    IngredientName = i.Name,
-                    Amount = i.Amount,
-                    Unit = i.Unit
-                }).ToList(),
+                    Title = dto.Title,
+                    Description = dto.Description,
+                    CookTime = dto.CookTime,
+                    TotalCalories = dto.TotalCalories,
+                    Difficulty = (DifficultyLevel)dto.Difficulty,
+                    ImageUrl = dto.ImageUrl,
+                    Status = PostStatus.Pending,
+                    CreatedAt = DateTime.UtcNow,
 
-                // Map danh sách các bước nấu (tự động đánh số thứ tự)
-                RecipeSteps = dto.StepDescriptions.Select((content, index) => new RecipeStep
+                    UserId = userId // GẮN USER_ID VÀO ĐÂY
+                };
+
+                _context.Recipes.Add(recipe);
+                await _context.SaveChangesAsync(); // Lưu để sinh ra ID
+
+                // 2. Lưu Bảng trung gian: Thẻ phân loại (Categories)
+                if (dto.CategoryIds != null && dto.CategoryIds.Any())
                 {
-                    Content = content,
-                    StepOrder = index + 1
-                }).ToList()
-            };
+                    var recipeCategories = dto.CategoryIds.Select(cId => new RecipeCategory
+                    {
+                        RecipeId = recipe.Id,
+                        CategoryId = cId
+                    });
+                    _context.RecipeCategories.AddRange(recipeCategories);
+                }
 
-            // Gọi Service tính toán 
-            // Đã chuyển sang await để đợi kết quả truy vấn từ bảng IngredientNutritions
-            await _nutritionService.CalculateTotalNutritionAsync(recipe);
+                // 3. Lưu Bảng: Nguyên liệu (Ingredients)
+                if (dto.Ingredients != null && dto.Ingredients.Any())
+                {
+                    var ingredients = dto.Ingredients.Select(i => new RecipeIngredient
+                    {
+                        RecipeId = recipe.Id,
+                        IngredientName = i.IngredientName,
+                        Amount = i.Amount,
+                        Unit = i.Unit
+                    });
+                    _context.RecipeIngredients.AddRange(ingredients);
+                }
+
+                // 4. Lưu Bảng: Các bước thực hiện (Steps)
+                if (dto.Steps != null && dto.Steps.Any())
+                {
+                    var steps = dto.Steps.Select(s => new RecipeStep
+                    {
+                        RecipeId = recipe.Id,
+                        StepNumber = s.StepNumber, // Lấy số thứ tự từ MVC gửi xuống
+                        Instruction = s.Instruction,
+                        ImageUrl = s.ImageUrl
+                    });
+                    _context.RecipeSteps.AddRange(steps);
+                }
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                return Ok(new { message = "Tạo công thức thành công, đang chờ duyệt!", recipeId = recipe.Id });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return StatusCode(500, "Lỗi máy chủ: " + ex.Message);
+            }
+        }
+
+        // Gọi Service tính toán 
+        // Đã chuyển sang await để đợi kết quả truy vấn từ bảng IngredientNutritions
+        await _nutritionService.CalculateTotalNutritionAsync(recipe);
 
             _context.Recipes.Add(recipe);
             await _context.SaveChangesAsync();

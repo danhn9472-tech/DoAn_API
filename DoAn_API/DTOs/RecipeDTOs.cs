@@ -2,24 +2,32 @@
 {
     public class RecipeDTOs
     {
-        public class CreateRecipeDto
+        public class CreateRecipeRequestDto
         {
             public string Title { get; set; }
             public string Description { get; set; }
             public int CookTime { get; set; }
-            public List<IngredientItemDto> Ingredients { get; set; }
-            public List<string> StepDescriptions { get; set; }
+            public int TotalCalories { get; set; }
+            public int Difficulty { get; set; }
+            public string ImageUrl { get; set; } 
+
+            public List<int> CategoryIds { get; set; } = new List<int>();
+            public List<IngredientDto> Ingredients { get; set; } = new List<IngredientDto>();
+            public List<StepDto> Steps { get; set; } = new List<StepDto>();
         }
 
-        public class IngredientItemDto
+        public class IngredientDto
         {
-            public string Name { get; set; }
-            public double Amount { get; set; }
+            public string IngredientName { get; set; }
+            public string Amount { get; set; }
             public string Unit { get; set; }
         }
-        public class FridgeSearchDto
+
+        public class StepDto
         {
-            public List<string> Ingredients { get; set; } = new List<string>();
+            public int StepNumber { get; set; }
+            public string Instruction { get; set; }
+            public string ImageUrl { get; set; } 
         }
     }
 }

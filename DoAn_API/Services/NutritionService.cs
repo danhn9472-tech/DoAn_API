@@ -1,6 +1,7 @@
 ﻿using DoAn_API.Data;
 using DoAn_API.Entities;
 using Microsoft.EntityFrameworkCore;
+
 namespace DoAn_API.Services
 {
     public class NutritionService
@@ -14,38 +15,78 @@ namespace DoAn_API.Services
 
         public async Task CalculateTotalNutritionAsync(Recipe recipe)
         {
-            double totalCalories = 0;
-            double totalProtein = 0;
-            double totalFat = 0;
-            double totalCarbs = 0;
+            if (recipe.RecipeIngredients == null || !recipe.RecipeIngredients.Any()) return;
 
-            if (recipe.RecipeIngredients != null)
+            double totalCalories = 0, totalProtein = 0, totalFat = 0, totalCarbs = 0;
+
+            var allNutritions = await _context.IngredientNutritions.ToListAsync();
+
+            foreach (var item in recipe.RecipeIngredients)
             {
-                foreach (var item in recipe.RecipeIngredients)
+                var nutrition = allNutritions.FirstOrDefault(n => n.Name.Equals(item.IngredientName, StringComparison.OrdinalIgnoreCase));
+
+                if (nutrition == null)
                 {
-                    // Dò tìm nguyên liệu trong Database dựa trên tên người dùng nhập
-                    var nutrition = await _context.IngredientNutritions
-                        .FirstOrDefaultAsync(n => item.IngredientName.ToLower().Contains(n.Name.ToLower())
-                                               || n.Name.ToLower().Contains(item.IngredientName.ToLower()));
+                    nutrition = allNutritions.FirstOrDefault(n =>
+                        item.IngredientName.ToLower().Contains(n.Name.ToLower()) ||
+                        n.Name.ToLower().Contains(item.IngredientName.ToLower()));
+                }
 
-                    if (nutrition != null)
-                    {
-                        // Tính toán tỷ lệ dựa trên khối lượng 
-                        double ratio = item.Amount / 100.0;
+                if (nutrition != null)
+                {
+                    double amountInGrams = ConvertToGrams(item.Amount, item.Unit);
 
-                        totalCalories += ratio * nutrition.Calories;
-                        totalProtein += ratio * nutrition.Protein;
-                        totalFat += ratio * nutrition.Fat;
-                        totalCarbs += ratio * nutrition.Carbs;
-                    }
+                    double ratio = amountInGrams / 100.0;
+
+                    totalCalories += ratio * nutrition.Calories;
+                    totalProtein += ratio * nutrition.Protein;
+                    totalFat += ratio * nutrition.Fat;
+                    totalCarbs += ratio * nutrition.Carbs;
                 }
             }
 
-            // Lưu kết quả cuối cùng vào Recipe 
-            recipe.TotalCalories = Math.Round(totalCalories, 2); 
-            recipe.TotalProtein = Math.Round(totalProtein, 2); 
+            recipe.TotalCalories = Math.Round(totalCalories, 2);
+            recipe.TotalProtein = Math.Round(totalProtein, 2);
             recipe.TotalFat = Math.Round(totalFat, 2);
             recipe.TotalCarbs = Math.Round(totalCarbs, 2);
+        }
+
+        private double ConvertToGrams(double amount, string unit)
+        {
+            if (string.IsNullOrWhiteSpace(unit)) return amount; 
+
+            string u = unit.ToLower().Trim();
+
+            switch (u)
+            {
+                case "kg":
+                case "kilogram":
+                case "kí":
+                    return amount * 1000.0;
+
+                case "l":
+                case "lít":
+                case "lit":
+                    return amount * 1000.0; 
+
+                case "ml":
+                case "milliliter":
+                    return amount * 1.0; 
+
+                case "muỗng canh":
+                case "tbsp":
+                    return amount * 15.0; 
+
+                case "muỗng cà phê":
+                case "tsp":
+                    return amount * 5.0; 
+
+                case "g":
+                case "gram":
+                case "gr":
+                default:
+                    return amount; 
+            }
         }
     }
 }
