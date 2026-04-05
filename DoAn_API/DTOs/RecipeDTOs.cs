@@ -17,5 +17,9 @@
             public double Amount { get; set; }
             public string Unit { get; set; }
         }
+        public class FridgeSearchDto
+        {
+            public List<string> Ingredients { get; set; } = new List<string>();
+        }
     }
 }

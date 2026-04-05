@@ -16,6 +16,8 @@ namespace DoAn_API.Data
             public DbSet<UserActivity> UserActivities { get; set; }
             public DbSet<IngredientNutrition> IngredientNutritions { get; set; }
             public DbSet<CommentReport> CommentReports { get; set; }
+            public DbSet<Category> Categories { get; set; }
+            public DbSet<RecipeCategory> RecipeCategories { get; set; }
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
@@ -74,6 +76,27 @@ namespace DoAn_API.Data
                       .HasForeignKey(cr => cr.CommentId)
                       .OnDelete(DeleteBehavior.NoAction); 
             });
+
+            builder.Entity<Category>()
+                .HasOne(c => c.ParentCategory)
+                .WithMany(c => c.SubCategories)
+                .HasForeignKey(c => c.ParentId)
+                .OnDelete(DeleteBehavior.Restrict); // Không cho xóa cha nếu còn con
+
+            builder.Entity<RecipeCategory>()
+                .HasKey(rc => new { rc.RecipeId, rc.CategoryId });
+
+            builder.Entity<RecipeCategory>()
+                .HasOne(rc => rc.Recipe)
+                .WithMany(r => r.RecipeCategories)
+                .HasForeignKey(rc => rc.RecipeId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<RecipeCategory>()
+                .HasOne(rc => rc.Category)
+                .WithMany(c => c.RecipeCategories)
+                .HasForeignKey(rc => rc.CategoryId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

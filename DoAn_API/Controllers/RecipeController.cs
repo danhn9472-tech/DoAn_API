@@ -236,5 +236,41 @@ namespace DoAn_API.Controllers
 
             return Ok(new { message = "Đã cập nhật trạng thái bài viết." });
         }
+
+        [HttpGet("filter-by-categories")]
+        public async Task<IActionResult> FilterByCategories([FromQuery] List<int> categoryIds)
+        {
+            // Bắt đầu với query lấy các bài viết đã duyệt
+            var query = _context.Recipes
+                .Where(r => r.Status == PostStatus.Approved)
+                .AsQueryable();
+
+            // Nếu người dùng có chọn ít nhất 1 filter
+            if (categoryIds != null && categoryIds.Any())
+            {
+                // Thuật toán: Lấy những Công thức (Recipe) nào mà trong danh sách RecipeCategories
+                // của nó, có chứa ít nhất 1 CategoryId nằm trong danh sách categoryIds gửi lên
+                query = query.Where(r => r.RecipeCategories.Any(rc => categoryIds.Contains(rc.CategoryId)));
+            }
+
+            var results = await query
+                .Include(r => r.User)
+                .OrderByDescending(r => r.Id)
+                .Select(r => new
+                {
+                    Id = r.Id,
+                    Title = r.Title,
+                    Description = r.Description,
+                    ImageUrl = r.ImageUrl,
+                    CookTime = r.CookTime,
+                    TotalCalories = r.TotalCalories,
+                    VoteCount = r.VoteCount,
+                    SaveCount = r.SaveCount,
+                    AuthorName = r.User != null ? r.User.FullName : "Đầu bếp gia đình"
+                })
+                .ToListAsync();
+
+            return Ok(results);
+        }
     }
 }

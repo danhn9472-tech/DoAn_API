@@ -27,5 +27,6 @@ namespace DoAn_API.Entities
         public virtual ICollection<RecipeIngredient> RecipeIngredients { get; set; }
         public virtual ICollection<RecipeStep> RecipeSteps { get; set; }
         public PostStatus Status { get; set; } = PostStatus.Pending;
+        public virtual ICollection<RecipeCategory> RecipeCategories { get; set; }
     }
 }
