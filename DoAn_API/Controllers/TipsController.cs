@@ -71,6 +71,7 @@ namespace DoAn_API.Controllers
                 Title = dto.Title,
                 Content = dto.Content,
                 ImageUrl = dto.ImageUrl,
+                AuthorName = dto.AuthorName,
                 UserId = userId,
                 CreatedAt = DateTime.Now
             };

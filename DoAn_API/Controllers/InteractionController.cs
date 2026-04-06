@@ -17,7 +17,7 @@ namespace DoAn_API.Controllers
         private readonly ApplicationDbContext _context;
         public InteractionController(ApplicationDbContext context) => _context = context;
 
-        // VOTE (LIKE) CÔNG THỨC
+        // -------VOTE (LIKE) CÔNG THỨC-------
         [HttpPost("vote-recipe/{id}")]
         public async Task<IActionResult> VoteRecipe(int id)
         {
@@ -43,7 +43,7 @@ namespace DoAn_API.Controllers
             return Ok(new { count = recipe.VoteCount, status = activity?.IsVoted ?? true });
         }
 
-        // BÌNH LUẬN
+        // -------BÌNH LUẬN-------
         [HttpPost("comment")]
         public async Task<IActionResult> PostComment([FromBody] CommentDto dto)
         {
@@ -60,19 +60,36 @@ namespace DoAn_API.Controllers
             await _context.SaveChangesAsync();
             return Ok(comment);
         }
+        [HttpGet("recipe/{recipeId}/comments")]
+        public async Task<IActionResult> GetRecipeComments(int recipeId)
+        {
+            var comments = await _context.Comments
+                .Where(c => c.RecipeId == recipeId)
+                .Include(c => c.User) 
+                .OrderByDescending(c => c.CreatedAt)
+                .Select(c => new {
+                    id = c.Id,
+                    content = c.Content,
+                    authorName = c.User != null ? (c.User.FullName ?? c.User.UserName) : "Thành viên NutriCook"
+                })
+                .ToListAsync();
+
+            return Ok(comments);
+        }
+
+
+        // -------LƯU CÔNG THỨC-------
         [Authorize]
         [HttpGet("saved-recipes")]
         public async Task<IActionResult> GetSavedRecipes()
         {
-            // 1. Lấy Id của người dùng 
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-            // 2. Truy vấn các "Save" của user này
             var savedRecipes = await _context.UserActivities
                 .Where(ua => ua.UserId == userId && ua.IsSaved == true && ua.RecipeId != null)
-                .Include(ua => ua.Recipe) // Kết nối để lấy thông tin món ăn
-                    .ThenInclude(r => r.RecipeIngredients) // (Tùy chọn) Lấy thêm nguyên liệu
-                .Select(ua => ua.Recipe) // Chỉ lấy đối tượng Recipe trả về
+                .Include(ua => ua.Recipe) 
+                    .ThenInclude(r => r.RecipeIngredients) 
+                .Select(ua => ua.Recipe) 
                 .ToListAsync();
 
             return Ok(savedRecipes);

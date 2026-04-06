@@ -58,6 +58,7 @@ namespace DoAn_API.Controllers
                 .Include(r => r.RecipeIngredients)
                 .Include(r => r.RecipeSteps)
                 .Include(r => r.User)
+                .Include(r => r.RecipeCategories)
                 .FirstOrDefaultAsync(r => r.Id == id);
 
             if (recipe == null)
@@ -87,6 +88,7 @@ namespace DoAn_API.Controllers
                     CookTime = dto.CookTime,
                     Difficulty = (DifficultyLevel)dto.Difficulty,
                     ImageUrl = dto.ImageUrl,
+                    AuthorName = dto.AuthorName,
                     Status = PostStatus.Pending,
                     CreatedAt = DateTime.UtcNow,
                     UserId = userId,
@@ -233,7 +235,6 @@ namespace DoAn_API.Controllers
             return Ok(myRecipes);
         }
 
-        // Lấy danh sách bài viết đang CHỜ DUYỆT (Dành cho Admin)
         [Authorize(Roles = "Admin")]
         [HttpGet("pending")]
         public async Task<ActionResult<IEnumerable<Recipe>>> GetPendingRecipes()
@@ -247,7 +248,7 @@ namespace DoAn_API.Controllers
             return Ok(pendingRecipes);
         }
 
-        // Cập nhật trạng thái bài viết (Dành cho Admin)
+
         [Authorize(Roles = "Admin")]
         [HttpPut("{id}/change-status")]
         public async Task<IActionResult> ChangeRecipeStatus(int id, [FromBody] PostStatus newStatus)
@@ -264,16 +265,11 @@ namespace DoAn_API.Controllers
         [HttpGet("filter-by-categories")]
         public async Task<IActionResult> FilterByCategories([FromQuery] List<int> categoryIds)
         {
-            // Bắt đầu với query lấy các bài viết đã duyệt
             var query = _context.Recipes
                 .Where(r => r.Status == PostStatus.Approved)
                 .AsQueryable();
-
-            // Nếu người dùng có chọn ít nhất 1 filter
             if (categoryIds != null && categoryIds.Any())
             {
-                // Thuật toán: Lấy những Công thức (Recipe) nào mà trong danh sách RecipeCategories
-                // của nó, có chứa ít nhất 1 CategoryId nằm trong danh sách categoryIds gửi lên
                 query = query.Where(r => r.RecipeCategories.Any(rc => categoryIds.Contains(rc.CategoryId)));
             }
 

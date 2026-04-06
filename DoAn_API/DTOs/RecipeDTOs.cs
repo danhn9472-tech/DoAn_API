@@ -9,7 +9,8 @@
             public int CookTime { get; set; }
             public int TotalCalories { get; set; }
             public int Difficulty { get; set; }
-            public string ImageUrl { get; set; } 
+            public string ImageUrl { get; set; }
+            public string? AuthorName { get; set; }
 
             public List<int> CategoryIds { get; set; } = new List<int>();
             public List<IngredientDto> Ingredients { get; set; } = new List<IngredientDto>();
