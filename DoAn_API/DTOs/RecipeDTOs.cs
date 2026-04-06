@@ -19,7 +19,7 @@
         public class IngredientDto
         {
             public string IngredientName { get; set; }
-            public string Amount { get; set; }
+            public Double Amount { get; set; }
             public string Unit { get; set; }
         }
 

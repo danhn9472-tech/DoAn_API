@@ -1,4 +1,5 @@
 ﻿using DoAn_API.Data;
+using DoAn_API.DTOs;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using static DoAn_API.DTOs.CategoryDTOs;
@@ -12,30 +13,52 @@ namespace DoAn_API.Controllers
         private readonly ApplicationDbContext _context;
         public CategoriesController(ApplicationDbContext context) => _context = context;
 
-        [HttpGet("ingredients-tree")]
-        public async Task<IActionResult> GetIngredientsTree()
+        [HttpGet("tree")]
+        public async Task<IActionResult> GetCategoryTree()
         {
-            // Chỉ lấy những danh mục GỐC (ParentId == null) có Type là Ingredient
-            var parentCategories = await _context.Categories
-                .Where(c => c.Type == "Ingredient" && c.ParentId == null)
-                .Include(c => c.SubCategories) // Kéo theo các mục con của nó
-                .ToListAsync();
+            var allCategories = await _context.Categories.ToListAsync();
 
-            // Ánh xạ sang DTO
-            var result = parentCategories.Select(parent => new CategoryTreeDto
-            {
-                Id = parent.Id,
-                Name = parent.Name,
-                Type = parent.Type,
-                SubCategories = parent.SubCategories.Select(child => new CategoryTreeDto
+            var parentIds = allCategories
+                .Where(c => c.ParentId != null)
+                .Select(c => c.ParentId)
+                .Distinct()
+                .ToList();
+
+            var leafCategories = allCategories
+                .Where(c => !parentIds.Contains(c.Id))
+                .ToList();
+
+            var categoryTree = leafCategories
+                .GroupBy(leaf => leaf.ParentId)
+                .Select(group =>
                 {
-                    Id = child.Id,
-                    Name = child.Name,
-                    Type = child.Type
-                }).ToList()
-            }).ToList();
+                    var parent = allCategories.FirstOrDefault(p => p.Id == group.Key);
 
-            return Ok(result);
+                    var grandParent = parent?.ParentId != null
+                        ? allCategories.FirstOrDefault(p => p.Id == parent.ParentId)
+                        : null;
+                    string groupLabel = grandParent != null
+                        ? $"{grandParent.Name} - {parent?.Name}"
+                        : (parent?.Name ?? "Mục khác");
+
+                    return new CategoryDTOs.CategoryTreeDto
+                    {
+                        Id = parent?.Id ?? 0,
+                        Name = groupLabel, 
+                        Type = parent?.Type ?? "Unknown",
+
+                        SubCategories = group.Select(leaf => new CategoryDTOs.CategoryTreeDto
+                        {
+                            Id = leaf.Id,      
+                            Name = leaf.Name,  
+                            Type = leaf.Type
+                        }).ToList()
+                    };
+                })
+                .OrderBy(c => c.Name) 
+                .ToList();
+
+            return Ok(categoryTree);
         }
     }
 }

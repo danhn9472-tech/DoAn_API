@@ -67,95 +67,67 @@ namespace DoAn_API.Controllers
 
             return recipe;
         }
-
-        [Authorize] // Bắt buộc user phải đăng nhập
+        // POST: api/Recipes
+        [Authorize]
         [HttpPost]
         public async Task<IActionResult> CreateRecipe([FromBody] RecipeDTOs.CreateRecipeRequestDto dto)
         {
             if (dto == null) return BadRequest("Dữ liệu không hợp lệ.");
 
-            // LẤY USER_ID TỪ TOKEN CỦA BẠN CHUẨN XÁC VÀO ĐÂY:
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
-                // 1. Lưu Bảng chính: Recipe
                 var recipe = new Recipe
                 {
                     Title = dto.Title,
                     Description = dto.Description,
                     CookTime = dto.CookTime,
-                    TotalCalories = dto.TotalCalories,
                     Difficulty = (DifficultyLevel)dto.Difficulty,
                     ImageUrl = dto.ImageUrl,
                     Status = PostStatus.Pending,
                     CreatedAt = DateTime.UtcNow,
+                    UserId = userId,
 
-                    UserId = userId // GẮN USER_ID VÀO ĐÂY
+                    RecipeCategories = dto.CategoryIds != null
+                        ? dto.CategoryIds.Select(cId => new RecipeCategory { CategoryId = cId }).ToList()
+                        : new List<RecipeCategory>(),
+
+                    RecipeIngredients = dto.Ingredients != null
+                        ? dto.Ingredients.Select(i => new RecipeIngredient
+                        {
+                            IngredientName = i.IngredientName,
+                            Amount = i.Amount,
+                            Unit = i.Unit
+                        }).ToList()
+                        : new List<RecipeIngredient>(),
+
+                    RecipeSteps = dto.Steps != null
+                        ? dto.Steps.Select((s, index) => new RecipeStep
+                        {
+                            StepOrder = index + 1,
+                            Content = s.Instruction
+                        }).ToList()
+                        : new List<RecipeStep>()
                 };
 
+                await _nutritionService.CalculateTotalNutritionAsync(recipe);
+
+                // BƯỚC 3: LƯU TOÀN BỘ VÀO DATABASE
                 _context.Recipes.Add(recipe);
-                await _context.SaveChangesAsync(); // Lưu để sinh ra ID
-
-                // 2. Lưu Bảng trung gian: Thẻ phân loại (Categories)
-                if (dto.CategoryIds != null && dto.CategoryIds.Any())
-                {
-                    var recipeCategories = dto.CategoryIds.Select(cId => new RecipeCategory
-                    {
-                        RecipeId = recipe.Id,
-                        CategoryId = cId
-                    });
-                    _context.RecipeCategories.AddRange(recipeCategories);
-                }
-
-                // 3. Lưu Bảng: Nguyên liệu (Ingredients)
-                if (dto.Ingredients != null && dto.Ingredients.Any())
-                {
-                    var ingredients = dto.Ingredients.Select(i => new RecipeIngredient
-                    {
-                        RecipeId = recipe.Id,
-                        IngredientName = i.IngredientName,
-                        Amount = i.Amount,
-                        Unit = i.Unit
-                    });
-                    _context.RecipeIngredients.AddRange(ingredients);
-                }
-
-                // 4. Lưu Bảng: Các bước thực hiện (Steps)
-                if (dto.Steps != null && dto.Steps.Any())
-                {
-                    var steps = dto.Steps.Select(s => new RecipeStep
-                    {
-                        RecipeId = recipe.Id,
-                        StepNumber = s.StepNumber, // Lấy số thứ tự từ MVC gửi xuống
-                        Instruction = s.Instruction,
-                        ImageUrl = s.ImageUrl
-                    });
-                    _context.RecipeSteps.AddRange(steps);
-                }
 
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
 
-                return Ok(new { message = "Tạo công thức thành công, đang chờ duyệt!", recipeId = recipe.Id });
+                return Ok(new { message = "Tạo công thức thành công, hệ thống đã tự động tính toán dinh dưỡng!", recipeId = recipe.Id });
             }
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
                 return StatusCode(500, "Lỗi máy chủ: " + ex.Message);
             }
-        }
-
-        // Gọi Service tính toán 
-        // Đã chuyển sang await để đợi kết quả truy vấn từ bảng IngredientNutritions
-        await _nutritionService.CalculateTotalNutritionAsync(recipe);
-
-            _context.Recipes.Add(recipe);
-            await _context.SaveChangesAsync();
-
-            return CreatedAtAction(nameof(GetRecipe), new { id = recipe.Id }, recipe);
         }
 
         // DELETE: api/Recipes
@@ -193,7 +165,6 @@ namespace DoAn_API.Controllers
             return Ok(new { message = "Xóa công thức thành công." });
         }
 
-        //Tính toán dinh dưỡng
         [HttpPost("analyze-nutrition")]
         public async Task<IActionResult> AnalyzeNutrition([FromBody] AnalyzeRequestDTOs dto)
         {
@@ -202,21 +173,17 @@ namespace DoAn_API.Controllers
                 return BadRequest(new { message = "Danh sách nguyên liệu không được để trống." });
             }
 
-            //  chứa dữ liệu tính toán
             var tempRecipe = new Recipe
             {
                 RecipeIngredients = dto.Ingredients.Select(i => new RecipeIngredient
                 {
-                    IngredientName = i.Name,
+                    IngredientName = i.IngredientName,
                     Amount = i.Amount,
                     Unit = i.Unit
                 }).ToList()
             };
-
-            // Gọi Service 
             await _nutritionService.CalculateTotalNutritionAsync(tempRecipe);
 
-            // Trả về các chỉ số dinh dưỡng đã tính
             return Ok(new
             {
                 calories = tempRecipe.TotalCalories,
@@ -224,6 +191,16 @@ namespace DoAn_API.Controllers
                 fat = tempRecipe.TotalFat,
                 carbs = tempRecipe.TotalCarbs
             });
+        }
+
+        [HttpGet("~/api/Nutrition/ingredients")]
+        public async Task<IActionResult> GetAllIngredientNames()
+        {
+            var names = await _context.IngredientNutritions
+                                      .Select(n => n.Name)
+                                      .OrderBy(n => n)
+                                      .ToListAsync();
+            return Ok(names);
         }
 
         [Authorize]

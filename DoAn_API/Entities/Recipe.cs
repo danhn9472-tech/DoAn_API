@@ -15,11 +15,13 @@ namespace DoAn_API.Entities
         public double TotalProtein { get; set; }
         public double TotalFat { get; set; }
         public double TotalCarbs { get; set; }
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public int VoteCount { get; set; } = 0;
         public int SaveCount { get; set; } = 0;
         public DifficultyLevel Difficulty { get; set; } = DifficultyLevel.Medium;
         [Required]
         public string UserId { get; set; }
+        public string? AuthorName { get; set; }
         [ForeignKey("UserId")]
         public virtual ApplicationUser User { get; set; }
         public virtual ICollection<Comment> Comments { get; set; }

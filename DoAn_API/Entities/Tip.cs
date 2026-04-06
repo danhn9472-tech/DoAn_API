@@ -25,6 +25,7 @@ namespace DoAn_API.Entities
         // Khóa ngoại liên kết với người dùng
         [Required]
         public string UserId { get; set; }
+        public string? AuthorName { get; set; }
         [ForeignKey("UserId")]
         public virtual ApplicationUser User { get; set; }
         public virtual ICollection<Comment> Comments { get; set; }

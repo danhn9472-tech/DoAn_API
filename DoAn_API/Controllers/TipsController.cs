@@ -45,6 +45,18 @@ namespace DoAn_API.Controllers
 
             return Ok(tips);
         }
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetTipById(int id)
+        {
+            var tip = await _context.Tips.FindAsync(id);
+
+            if (tip == null)
+            {
+                return NotFound(new { message = "Không tìm thấy bài viết" });
+            }
+
+            return Ok(tip);
+        }
 
         // Tạo bài viết Tip mới (Yêu cầu đăng nhập)
         [Authorize]
@@ -144,6 +156,62 @@ namespace DoAn_API.Controllers
                 .ToListAsync();
 
             return Ok(myTips);
+        }
+        [HttpPost("{id}/vote")]
+        [Authorize] 
+        public async Task<IActionResult> ToggleVote(int id)
+        {
+            var tip = await _context.Tips.FindAsync(id);
+            if (tip == null) return NotFound();
+
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            var activity = await _context.UserActivities
+                .FirstOrDefaultAsync(a => a.TipId == id && a.UserId == userId);
+
+            if (activity == null)
+            {
+                activity = new UserActivity { TipId = id, UserId = userId, IsVoted = true };
+                _context.UserActivities.Add(activity);
+                tip.VoteCount++;
+            }
+            else
+            {
+                activity.IsVoted = !activity.IsVoted;
+                tip.VoteCount += activity.IsVoted ? 1 : -1;
+            }
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { newCount = tip.VoteCount });
+        }
+        [HttpPost("{id}/save")]
+        [Authorize]
+        public async Task<IActionResult> ToggleSave(int id)
+        {
+            var tip = await _context.Tips.FindAsync(id);
+            if (tip == null) return NotFound();
+
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            var activity = await _context.UserActivities
+                .FirstOrDefaultAsync(a => a.TipId == id && a.UserId == userId);
+
+            if (activity == null)
+            {
+                activity = new UserActivity { TipId = id, UserId = userId, IsSaved = true };
+                _context.UserActivities.Add(activity);
+                tip.SaveCount++;
+            }
+            else
+            {
+                activity.IsSaved = !activity.IsSaved;
+                tip.SaveCount += activity.IsSaved ? 1 : -1;
+            }
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { newCount = tip.SaveCount });
         }
     }
 }
