@@ -1,7 +1,8 @@
 ﻿using DoAn_API.Data;
+using DoAn_API.DTOs;
+using DoAn_API.Entities.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using DoAn_API.Entities.Enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace DoAn_API.Controllers
@@ -12,17 +13,19 @@ namespace DoAn_API.Controllers
     public class AdminController: ControllerBase
     {
         private readonly ApplicationDbContext _context;
-        public AdminController(ApplicationDbContext context) => _context = context;
+        public AdminController(ApplicationDbContext context)
+        {
+            _context = context;
+        }
 
-        // Lấy danh sách các báo cáo đang chờ xử lý
         [HttpGet("reports/pending")]
         public async Task<IActionResult> GetPendingReports()
         {
             var reports = await _context.CommentReports
                 .Where(r => r.Status == Entities.Enums.ReportStatus.Pending)
-                .Include(r => r.User) // Người báo cáo
-                .Include(r => r.Comment) // Bình luận bị báo cáo
-                    .ThenInclude(c => c.User) // Tác giả của bình luận
+                .Include(r => r.User) 
+                .Include(r => r.Comment) 
+                    .ThenInclude(c => c.User) 
                 .Select(r => new {
                     ReportId = r.Id,
                     ReporterName = r.User.UserName,
@@ -36,7 +39,6 @@ namespace DoAn_API.Controllers
             return Ok(reports);
         }
 
-        // Xử lý báo cáo (Ví dụ: Xóa bình luận và đánh dấu Resolved)
         [HttpPost("reports/{reportId}/resolve")]
         public async Task<IActionResult> ResolveReport(int reportId, [FromQuery] bool deleteComment)
         {
@@ -58,6 +60,24 @@ namespace DoAn_API.Controllers
 
             await _context.SaveChangesAsync();
             return Ok(new { message = "Đã xử lý báo cáo." });
+        }
+
+        [HttpGet("statistics")]
+        public async Task<IActionResult> GetStatistics()
+        {
+            var stats = new DashboardStatDto
+            {
+                TotalUsers = await _context.Users.CountAsync(),
+
+                TotalRecipes = await _context.Recipes.CountAsync(),
+
+                TotalTips = await _context.Tips.CountAsync(),
+
+                PendingPosts = await _context.Recipes.CountAsync(r => r.Status == PostStatus.Pending)
+                             + await _context.Tips.CountAsync(t => t.Status == PostStatus.Pending)
+            };
+
+            return Ok(stats);
         }
     }
 }
