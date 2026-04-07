@@ -59,6 +59,7 @@ namespace DoAn_API.Controllers
                 .Include(r => r.RecipeSteps)
                 .Include(r => r.User)
                 .Include(r => r.RecipeCategories)
+                .ThenInclude(rc => rc.Category)
                 .FirstOrDefaultAsync(r => r.Id == id);
 
             if (recipe == null)
@@ -110,7 +111,8 @@ namespace DoAn_API.Controllers
                         ? dto.Steps.Select((s, index) => new RecipeStep
                         {
                             StepOrder = index + 1,
-                            Content = s.Instruction
+                            Content = s.Instruction,
+                            ImageUrl = s.ImageUrl
                         }).ToList()
                         : new List<RecipeStep>()
                 };

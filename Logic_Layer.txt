@@ -3895,3 +3895,1066 @@ namespace DoAn_API.Services
 
 
 
+=== FILE: C:\Users\windows\source\repos\DoAn_Web\DoAn_API\DoAn_API\Controllers\AccountController.cs ===
+using DoAn_API.DTOs;
+using DoAn_API.Entities;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
+using static DoAn_API.DTOs.AuthDTOs;
+
+namespace DoAn_API.Controllers
+{
+    [Route("api/[controller]")]
+    [ApiController]
+    public class AccountController : ControllerBase
+    {
+        private readonly UserManager<ApplicationUser> _userManager;
+        private readonly RoleManager<IdentityRole> _roleManager;
+        private readonly IConfiguration _configuration;
+
+        public AccountController(
+            UserManager<ApplicationUser> userManager,
+            RoleManager<IdentityRole> roleManager,
+            IConfiguration configuration)
+        {
+            _userManager = userManager;
+            _roleManager = roleManager;
+            _configuration = configuration;
+        }
+
+        // 1. ĐĂNG KÝ TÀI KHOẢN
+        [HttpPost("register")]
+        public async Task<IActionResult> Register([FromBody] AuthDTOs.RegisterDto model)
+        {
+            var userExists = await _userManager.FindByNameAsync(model.Username);
+            if (userExists != null)
+                return BadRequest(new { message = "Tên đăng nhập đã tồn tại!" });
+
+            ApplicationUser user = new()
+            {
+                Email = model.Email,
+                SecurityStamp = Guid.NewGuid().ToString(),
+                UserName = model.Username,
+                FullName = model.FullName
+            };
+
+            var result = await _userManager.CreateAsync(user, model.Password);
+            if (!result.Succeeded)
+                return BadRequest(new { message = "Đăng ký thất bại!", errors = result.Errors });
+
+            // Kiểm tra và tạo Role "User" nếu chưa có
+            if (!await _roleManager.RoleExistsAsync("User"))
+            {
+                await _roleManager.CreateAsync(new IdentityRole("User"));
+            }
+
+            // Gán quyền User mặc định
+            await _userManager.AddToRoleAsync(user, "User");
+
+            return Ok(new { message = "Đăng ký tài khoản thành công!" });
+        }
+
+        // 2. ĐĂNG NHẬP & CẤP TOKEN
+        [HttpPost("login")]
+        public async Task<IActionResult> Login([FromBody] AuthDTOs.LoginDto model)
+        {
+            var user = await _userManager.FindByNameAsync(model.Username);
+
+            if (user != null && await _userManager.CheckPasswordAsync(user, model.Password))
+            {
+                var userRoles = await _userManager.GetRolesAsync(user);
+
+                var authClaims = new List<Claim>
+                {
+                    new Claim(ClaimTypes.Name, user.UserName!),
+                    new Claim(ClaimTypes.NameIdentifier, user.Id),
+                    new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+                };
+
+                foreach (var userRole in userRoles)
+                {
+                    authClaims.Add(new Claim(ClaimTypes.Role, userRole));
+                }
+
+                var authSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!));
+
+                var token = new JwtSecurityToken(
+                    issuer: _configuration["Jwt:Issuer"],
+                    audience: _configuration["Jwt:Audience"],
+                    expires: DateTime.Now.AddHours(3),
+                    claims: authClaims,
+                    signingCredentials: new SigningCredentials(authSigningKey, SecurityAlgorithms.HmacSha256)
+                );
+
+                return Ok(new
+                {
+                    token = new JwtSecurityTokenHandler().WriteToken(token),
+                    expiration = token.ValidTo,
+                    username = user.UserName,
+                    fullName = user.FullName,
+                    roles = userRoles
+                });
+            }
+            return Unauthorized(new { message = "Sai tên đăng nhập hoặc mật khẩu!" });
+        }
+    }
+}
+
+
+
+
+=== FILE: C:\Users\windows\source\repos\DoAn_Web\DoAn_API\DoAn_API\Controllers\AdminController.cs ===
+using DoAn_API.Data;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using DoAn_API.Entities.Enums;
+using Microsoft.EntityFrameworkCore;
+
+namespace DoAn_API.Controllers
+{
+    [Authorize(Roles = "Admin")]
+    [Route("api/[controller]")]
+    [ApiController]
+    public class AdminController: ControllerBase
+    {
+        private readonly ApplicationDbContext _context;
+        public AdminController(ApplicationDbContext context) => _context = context;
+
+        // Lấy danh sách các báo cáo đang chờ xử lý
+        [HttpGet("reports/pending")]
+        public async Task<IActionResult> GetPendingReports()
+        {
+            var reports = await _context.CommentReports
+                .Where(r => r.Status == Entities.Enums.ReportStatus.Pending)
+                .Include(r => r.User) // Người báo cáo
+                .Include(r => r.Comment) // Bình luận bị báo cáo
+                    .ThenInclude(c => c.User) // Tác giả của bình luận
+                .Select(r => new {
+                    ReportId = r.Id,
+                    ReporterName = r.User.UserName,
+                    Reason = r.Reason,
+                    CommentContent = r.Comment.Content,
+                    CommentAuthor = r.Comment.User.UserName,
+                    ReportedAt = r.CreatedAt
+                })
+                .ToListAsync();
+
+            return Ok(reports);
+        }
+
+        // Xử lý báo cáo (Ví dụ: Xóa bình luận và đánh dấu Resolved)
+        [HttpPost("reports/{reportId}/resolve")]
+        public async Task<IActionResult> ResolveReport(int reportId, [FromQuery] bool deleteComment)
+        {
+            var report = await _context.CommentReports
+                .Include(r => r.Comment)
+                .FirstOrDefaultAsync(r => r.Id == reportId);
+
+            if (report == null) return NotFound();
+
+            if (deleteComment && report.Comment != null)
+            {
+                _context.Comments.Remove(report.Comment);
+                report.Status = Entities.Enums.ReportStatus.Resolved;
+            }
+            else
+            {
+                report.Status = Entities.Enums.ReportStatus.Dismissed; // Bỏ qua nếu bình luận không vi phạm
+            }
+
+            await _context.SaveChangesAsync();
+            return Ok(new { message = "Đã xử lý báo cáo." });
+        }
+    }
+}
+
+
+
+=== FILE: C:\Users\windows\source\repos\DoAn_Web\DoAn_API\DoAn_API\Controllers\CategoriesController.cs ===
+using DoAn_API.Data;
+using DoAn_API.DTOs;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using static DoAn_API.DTOs.CategoryDTOs;
+
+namespace DoAn_API.Controllers
+{
+    [Route("api/[controller]")]
+    [ApiController]
+    public class CategoriesController : ControllerBase
+    {
+        private readonly ApplicationDbContext _context;
+        public CategoriesController(ApplicationDbContext context) => _context = context;
+
+        [HttpGet("tree")]
+        public async Task<IActionResult> GetCategoryTree()
+        {
+            var allCategories = await _context.Categories.ToListAsync();
+
+            var parentIds = allCategories
+                .Where(c => c.ParentId != null)
+                .Select(c => c.ParentId)
+                .Distinct()
+                .ToList();
+
+            var leafCategories = allCategories
+                .Where(c => !parentIds.Contains(c.Id))
+                .ToList();
+
+            var categoryTree = leafCategories
+                .GroupBy(leaf => leaf.ParentId)
+                .Select(group =>
+                {
+                    var parent = allCategories.FirstOrDefault(p => p.Id == group.Key);
+
+                    var grandParent = parent?.ParentId != null
+                        ? allCategories.FirstOrDefault(p => p.Id == parent.ParentId)
+                        : null;
+                    string groupLabel = grandParent != null
+                        ? $"{grandParent.Name} - {parent?.Name}"
+                        : (parent?.Name ?? "Mục khác");
+
+                    return new CategoryDTOs.CategoryTreeDto
+                    {
+                        Id = parent?.Id ?? 0,
+                        Name = groupLabel, 
+                        Type = parent?.Type ?? "Unknown",
+
+                        SubCategories = group.Select(leaf => new CategoryDTOs.CategoryTreeDto
+                        {
+                            Id = leaf.Id,      
+                            Name = leaf.Name,  
+                            Type = leaf.Type
+                        }).ToList()
+                    };
+                })
+                .OrderBy(c => c.Name) 
+                .ToList();
+
+            return Ok(categoryTree);
+        }
+    }
+}
+
+
+
+=== FILE: C:\Users\windows\source\repos\DoAn_Web\DoAn_API\DoAn_API\Controllers\InteractionController.cs ===
+using DoAn_API.Data;
+using DoAn_API.DTOs;
+using DoAn_API.Entities;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
+
+namespace DoAn_API.Controllers
+{
+    [Authorize]
+    [Route("api/[controller]")]
+    [ApiController]
+    public class InteractionController : ControllerBase
+    {
+        private readonly ApplicationDbContext _context;
+        public InteractionController(ApplicationDbContext context) => _context = context;
+
+        // -------VOTE (LIKE) CÔNG THỨC-------
+        [HttpPost("vote-recipe/{id}")]
+        public async Task<IActionResult> VoteRecipe(int id)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var recipe = await _context.Recipes.FindAsync(id);
+            if (recipe == null) return NotFound();
+
+            var activity = await _context.UserActivities
+                .FirstOrDefaultAsync(x => x.UserId == userId && x.RecipeId == id);
+
+            if (activity == null)
+            {
+                _context.UserActivities.Add(new UserActivity { UserId = userId, RecipeId = id, IsVoted = true });
+                recipe.VoteCount++;
+            }
+            else
+            {
+                activity.IsVoted = !activity.IsVoted; // Toggle Like/Unlike
+                recipe.VoteCount = activity.IsVoted ? recipe.VoteCount + 1 : recipe.VoteCount - 1;
+            }
+
+            await _context.SaveChangesAsync();
+            return Ok(new { count = recipe.VoteCount, status = activity?.IsVoted ?? true });
+        }
+
+        // -------BÌNH LUẬN-------
+        [HttpPost("comment")]
+        public async Task<IActionResult> PostComment([FromBody] CommentDto dto)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var comment = new Comment
+            {
+                Content = dto.Content,
+                UserId = userId,
+                RecipeId = dto.RecipeId,
+                TipId = dto.TipId,
+                CreatedAt = DateTime.Now 
+            };
+
+            _context.Comments.Add(comment);
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                id = comment.Id,
+                content = comment.Content,
+                createdAt = comment.CreatedAt
+            });
+        }
+
+        [AllowAnonymous]
+        [HttpGet("recipe/{recipeId}/comments")]
+        public async Task<IActionResult> GetRecipeComments(int recipeId)
+        {
+            var comments = await _context.Comments
+                .Where(c => c.RecipeId == recipeId)
+                .Include(c => c.User)
+                .OrderByDescending(c => c.CreatedAt)
+                .Select(c => new {
+                    id = c.Id,
+                    content = c.Content,
+                    createdAt = c.CreatedAt, 
+                    authorName = c.User != null ? (c.User.FullName ?? c.User.UserName) : "Thành viên NutriCook"
+                })
+                .ToListAsync();
+
+            return Ok(comments);
+        }
+
+
+        // -------LƯU CÔNG THỨC-------
+        [HttpPost("save-recipe/{id}")]
+        public async Task<IActionResult> SaveRecipe(int id)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var recipe = await _context.Recipes.FindAsync(id);
+            if (recipe == null) return NotFound();
+
+            var activity = await _context.UserActivities
+                .FirstOrDefaultAsync(x => x.UserId == userId && x.RecipeId == id);
+
+            if (activity == null)
+            {
+                _context.UserActivities.Add(new UserActivity { UserId = userId, RecipeId = id, IsSaved = true });
+                recipe.SaveCount++;
+            }
+            else
+            {
+                activity.IsSaved = !activity.IsSaved;
+                recipe.SaveCount = activity.IsSaved ? recipe.SaveCount + 1 : recipe.SaveCount - 1;
+            }
+
+            await _context.SaveChangesAsync();
+            // Chú ý: Trả về chữ "count" cho giống với VoteRecipe
+            return Ok(new { count = recipe.SaveCount, status = activity?.IsSaved ?? true });
+        }
+
+        // GỬI BÁO CÁO BÌNH LUẬN
+        [Authorize]
+        [HttpPost("comment/{commentId}/report")]
+        public async Task<IActionResult> ReportComment(int commentId, [FromBody] ReportDTOs.CreateReportDto dto)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            // Kiểm tra bình luận có tồn tại không
+            var comment = await _context.Comments.FindAsync(commentId);
+            if (comment == null) return NotFound(new { message = "Bình luận không tồn tại." });
+
+            // Kiểm tra xem user này đã báo cáo bình luận này chưa (chống spam báo cáo)
+            var existingReport = await _context.CommentReports
+                .FirstOrDefaultAsync(r => r.CommentId == commentId && r.UserId == userId);
+
+            if (existingReport != null)
+                return BadRequest(new { message = "Bạn đã báo cáo bình luận này rồi." });
+
+            var report = new CommentReport
+            {
+                CommentId = commentId,
+                UserId = userId,
+                Reason = dto.Reason
+            };
+
+            _context.CommentReports.Add(report);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Cảm ơn bạn đã báo cáo. Chúng tôi sẽ xem xét sớm nhất." });
+        }
+    }
+}
+
+
+
+=== FILE: C:\Users\windows\source\repos\DoAn_Web\DoAn_API\DoAn_API\Controllers\RecipeController.cs ===
+using DoAn_API.Data;
+using DoAn_API.DTOs;
+using DoAn_API.Entities;
+using DoAn_API.Entities.Enums;
+using DoAn_API.Services;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
+
+namespace DoAn_API.Controllers
+{
+    [Route("api/[controller]")]
+    [ApiController]
+    public class RecipesController : ControllerBase
+    {
+        private readonly ApplicationDbContext _context;
+        private readonly NutritionService _nutritionService;
+
+        public RecipesController(ApplicationDbContext context, NutritionService nutritionService)
+        {
+            _context = context;
+            _nutritionService = nutritionService;
+        }
+
+        // GET: api/Recipes
+        [HttpGet]
+        public async Task<IActionResult> GetRecipes()
+        {
+            var recipes = await _context.Recipes
+                .Where(r => r.Status == PostStatus.Approved) 
+                .Include(r => r.User) 
+                .OrderByDescending(r => r.Id)
+                .Select(r => new
+                {
+                    Id = r.Id,
+                    Title = r.Title,
+                    Description = r.Description,
+                    ImageUrl = r.ImageUrl,
+                    CookTime = r.CookTime,
+                    TotalCalories = r.TotalCalories,
+                    VoteCount = r.VoteCount,
+                    SaveCount = r.SaveCount,
+                    UserId = r.UserId,
+                    Status = r.Status,
+                    AuthorName = r.User != null ? r.User.FullName : "Đầu bếp gia đình"
+                })
+                .ToListAsync();
+
+            return Ok(recipes);
+        }
+
+        // GET: api/Recipes/5
+        [HttpGet("{id}")]
+        public async Task<ActionResult<Recipe>> GetRecipe(int id)
+        {
+            var recipe = await _context.Recipes
+                .Include(r => r.RecipeIngredients)
+                .Include(r => r.RecipeSteps)
+                .Include(r => r.User)
+                .Include(r => r.RecipeCategories)
+                .FirstOrDefaultAsync(r => r.Id == id);
+
+            if (recipe == null)
+            {
+                return NotFound(new { message = "Không tìm thấy công thức này." });
+            }
+
+            return recipe;
+        }
+        // POST: api/Recipes
+        [Authorize]
+        [HttpPost]
+        public async Task<IActionResult> CreateRecipe([FromBody] RecipeDTOs.CreateRecipeRequestDto dto)
+        {
+            if (dto == null) return BadRequest("Dữ liệu không hợp lệ.");
+
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                var recipe = new Recipe
+                {
+                    Title = dto.Title,
+                    Description = dto.Description,
+                    CookTime = dto.CookTime,
+                    Difficulty = (DifficultyLevel)dto.Difficulty,
+                    ImageUrl = dto.ImageUrl,
+                    AuthorName = dto.AuthorName,
+                    Status = PostStatus.Pending,
+                    CreatedAt = DateTime.UtcNow,
+                    UserId = userId,
+
+                    RecipeCategories = dto.CategoryIds != null
+                        ? dto.CategoryIds.Select(cId => new RecipeCategory { CategoryId = cId }).ToList()
+                        : new List<RecipeCategory>(),
+
+                    RecipeIngredients = dto.Ingredients != null
+                        ? dto.Ingredients.Select(i => new RecipeIngredient
+                        {
+                            IngredientName = i.IngredientName,
+                            Amount = i.Amount,
+                            Unit = i.Unit
+                        }).ToList()
+                        : new List<RecipeIngredient>(),
+
+                    RecipeSteps = dto.Steps != null
+                        ? dto.Steps.Select((s, index) => new RecipeStep
+                        {
+                            StepOrder = index + 1,
+                            Content = s.Instruction,
+                            ImageUrl = s.ImageUrl
+                        }).ToList()
+                        : new List<RecipeStep>()
+                };
+
+                await _nutritionService.CalculateTotalNutritionAsync(recipe);
+
+                _context.Recipes.Add(recipe);
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                return Ok(new { message = "Tạo công thức thành công, hệ thống đã tự động tính toán dinh dưỡng!", recipeId = recipe.Id });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return StatusCode(500, "Lỗi máy chủ: " + ex.Message);
+            }
+        }
+
+        // DELETE: api/Recipes
+        [Authorize]
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteRecipe(int id)
+        {
+            var recipe = await _context.Recipes
+                .Include(r => r.Comments)
+                .FirstOrDefaultAsync(r => r.Id == id);
+
+            if (recipe == null) return NotFound();
+
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var isAdmin = User.IsInRole("Admin");
+
+            // Chỉ chủ sở hữu công thức/Admin mới có quyền xóa
+            if (recipe.UserId != userId && !isAdmin)
+            {
+                return Forbid();
+            }
+
+            // Xóa tương tác và bình luận trước
+            var activities = _context.UserActivities.Where(ua => ua.RecipeId == id);
+            _context.UserActivities.RemoveRange(activities);
+
+            if (recipe.Comments != null && recipe.Comments.Any())
+            {
+                _context.Comments.RemoveRange(recipe.Comments);
+            }
+
+            _context.Recipes.Remove(recipe);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Xóa công thức thành công." });
+        }
+
+        [HttpGet("top/{count}")]
+        [AllowAnonymous] 
+        public async Task<IActionResult> GetTopRecipes(int count)
+        {
+            var recipes = await _context.Recipes
+                .Where(r => r.Status == PostStatus.Approved)
+                .Include(r => r.User)
+                .OrderByDescending(r => r.Id)
+                .Take(count) 
+                .Select(r => new
+                {
+                    Id = r.Id,
+                    Title = r.Title,
+                    Description = r.Description,
+                    ImageUrl = r.ImageUrl,
+                    CookTime = r.CookTime,
+                    TotalCalories = r.TotalCalories,
+                    VoteCount = r.VoteCount,
+                    AuthorName = r.User != null ? (r.User.FullName ?? r.User.UserName) : "Đầu bếp gia đình"
+                })
+                .ToListAsync();
+
+            return Ok(recipes);
+        }
+
+        [HttpPost("analyze-nutrition")]
+        public async Task<IActionResult> AnalyzeNutrition([FromBody] AnalyzeRequestDTOs dto)
+        {
+            if (dto.Ingredients == null || !dto.Ingredients.Any())
+            {
+                return BadRequest(new { message = "Danh sách nguyên liệu không được để trống." });
+            }
+
+            var tempRecipe = new Recipe
+            {
+                RecipeIngredients = dto.Ingredients.Select(i => new RecipeIngredient
+                {
+                    IngredientName = i.IngredientName,
+                    Amount = i.Amount,
+                    Unit = i.Unit
+                }).ToList()
+            };
+            await _nutritionService.CalculateTotalNutritionAsync(tempRecipe);
+
+            return Ok(new
+            {
+                calories = tempRecipe.TotalCalories,
+                protein = tempRecipe.TotalProtein,
+                fat = tempRecipe.TotalFat,
+                carbs = tempRecipe.TotalCarbs
+            });
+        }
+
+        [HttpGet("~/api/Nutrition/ingredients")]
+        public async Task<IActionResult> GetAllIngredientNames()
+        {
+            var names = await _context.IngredientNutritions
+                                      .Select(n => n.Name)
+                                      .OrderBy(n => n)
+                                      .ToListAsync();
+            return Ok(names);
+        }
+
+        [Authorize]
+        [HttpGet("my-recipes")]
+        public async Task<IActionResult> GetMyRecipes()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+            var myRecipes = await _context.Recipes
+                .Where(r => r.UserId == userId)
+                .Include(r => r.User)
+                .OrderByDescending(r => r.Id)
+                .Select(r => new
+                {
+                    Id = r.Id,
+                    Title = r.Title,
+                    Description = r.Description,
+                    ImageUrl = r.ImageUrl,
+                    CookTime = r.CookTime,
+                    TotalCalories = r.TotalCalories,
+                    VoteCount = r.VoteCount,
+                    SaveCount = r.SaveCount,
+                    UserId = r.UserId,
+                    Status = r.Status,
+                    AuthorName = r.User != null ? r.User.FullName : "Đầu bếp gia đình"
+                })
+                .ToListAsync();
+
+            return Ok(myRecipes);
+        }
+
+        [Authorize(Roles = "Admin")]
+        [HttpGet("pending")]
+        public async Task<ActionResult<IEnumerable<Recipe>>> GetPendingRecipes()
+        {
+            var pendingRecipes = await _context.Recipes
+                .Where(r => r.Status == PostStatus.Pending)
+                .Include(r => r.User)
+                .OrderBy(r => r.Id)
+                .ToListAsync();
+
+            return Ok(pendingRecipes);
+        }
+
+
+        [Authorize(Roles = "Admin")]
+        [HttpPut("{id}/change-status")]
+        public async Task<IActionResult> ChangeRecipeStatus(int id, [FromBody] PostStatus newStatus)
+        {
+            var recipe = await _context.Recipes.FindAsync(id);
+            if (recipe == null) return NotFound(new { message = "Không tìm thấy công thức." });
+
+            recipe.Status = newStatus;
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Đã cập nhật trạng thái bài viết." });
+        }
+
+        [HttpGet("filter-by-categories")]
+        public async Task<IActionResult> FilterByCategories([FromQuery] List<int> categoryIds)
+        {
+            var query = _context.Recipes
+                .Where(r => r.Status == PostStatus.Approved)
+                .AsQueryable();
+            if (categoryIds != null && categoryIds.Any())
+            {
+                query = query.Where(r => r.RecipeCategories.Any(rc => categoryIds.Contains(rc.CategoryId)));
+            }
+
+            var results = await query
+                .Include(r => r.User)
+                .OrderByDescending(r => r.Id)
+                .Select(r => new
+                {
+                    Id = r.Id,
+                    Title = r.Title,
+                    Description = r.Description,
+                    ImageUrl = r.ImageUrl,
+                    CookTime = r.CookTime,
+                    TotalCalories = r.TotalCalories,
+                    VoteCount = r.VoteCount,
+                    SaveCount = r.SaveCount,
+                    AuthorName = r.User != null ? r.User.FullName : "Đầu bếp gia đình"
+                })
+                .ToListAsync();
+
+            return Ok(results);
+        }
+    }
+}
+
+
+
+=== FILE: C:\Users\windows\source\repos\DoAn_Web\DoAn_API\DoAn_API\Controllers\TipsController.cs ===
+using DoAn_API.Data;
+using DoAn_API.DTOs;
+using DoAn_API.Entities;
+using DoAn_API.Entities.Enums;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
+
+namespace DoAn_API.Controllers
+{
+    [Route("api/[controller]")]
+    [ApiController]
+    public class TipsController : ControllerBase
+    {
+        private readonly ApplicationDbContext _context;
+
+        public TipsController(ApplicationDbContext context)
+        {
+            _context = context;
+        }
+
+        // GET: api/Tips
+        [HttpGet]
+        public async Task<IActionResult> GetTips()
+        {
+            var tips = await _context.Tips
+                .Where(t => t.Status == PostStatus.Approved) 
+                .Include(t => t.User)
+                .OrderByDescending(t => t.CreatedAt)
+                .Select(t => new
+                {
+                    Id = t.Id,
+                    Title = t.Title,
+                    Content = t.Content,
+                    ImageUrl = t.ImageUrl,
+                    CreatedAt = t.CreatedAt,
+                    VoteCount = t.VoteCount,
+                    SaveCount = t.SaveCount,
+                    UserId = t.UserId,
+                    Status = t.Status,
+                    AuthorName = t.User != null ? t.User.FullName : "Đầu bếp gia đình"
+                })
+                .ToListAsync();
+
+            return Ok(tips);
+        }
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetTipById(int id)
+        {
+            var tip = await _context.Tips.FindAsync(id);
+
+            if (tip == null)
+            {
+                return NotFound(new { message = "Không tìm thấy bài viết" });
+            }
+
+            return Ok(tip);
+        }
+        [HttpGet("top/{count}")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetTopTips(int count)
+        {
+            var tips = await _context.Tips
+                .Where(t => t.Status == PostStatus.Approved)
+                .Include(t => t.User)
+                .OrderByDescending(t => t.CreatedAt)
+                .Take(count)
+                .Select(t => new
+                {
+                    Id = t.Id,
+                    Title = t.Title,
+                    Content = t.Content,
+                    ImageUrl = t.ImageUrl,
+                    CreatedAt = t.CreatedAt,
+                    VoteCount = t.VoteCount,
+                    AuthorName = t.User != null ? t.User.FullName : "Đầu bếp gia đình"
+                })
+                .ToListAsync();
+
+            return Ok(tips);
+        }
+
+        [Authorize]
+        [HttpPost]
+        public async Task<ActionResult<Tip>> PostTip([FromBody] TipDTOs.CreateTipDto dto)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+            var tip = new Tip
+            {
+                Title = dto.Title,
+                Content = dto.Content,
+                ImageUrl = dto.ImageUrl,
+                AuthorName = dto.AuthorName,
+                UserId = userId,
+                CreatedAt = DateTime.Now
+            };
+
+            _context.Tips.Add(tip);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Đăng bài viết thành công!", tipId = tip.Id });
+        }
+
+        [Authorize]
+        [HttpPut("{id}")]
+        public async Task<IActionResult> PutTip(int id, [FromBody] TipDTOs.CreateTipDto dto)
+        {
+            var tip = await _context.Tips.FindAsync(id);
+            if (tip == null) return NotFound(new { message = "Không tìm thấy bài viết." });
+
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (tip.UserId != userId && !User.IsInRole("Admin"))
+            {
+                return Forbid();
+            }
+
+            tip.Title = dto.Title;
+            tip.Content = dto.Content;
+            tip.ImageUrl = dto.ImageUrl;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Cập nhật bài viết thành công!", tipId = tip.Id });
+        }
+
+        [Authorize]
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteTip(int id)
+        {
+            var tip = await _context.Tips.Include(t => t.Comments).FirstOrDefaultAsync(t => t.Id == id);
+            if (tip == null) return NotFound();
+
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (tip.UserId != userId && !User.IsInRole("Admin")) return Forbid();
+
+            var activities = _context.UserActivities.Where(ua => ua.TipId == id);
+            _context.UserActivities.RemoveRange(activities);
+
+            if (tip.Comments != null && tip.Comments.Any())
+            {
+                _context.Comments.RemoveRange(tip.Comments);
+            }
+
+            _context.Tips.Remove(tip);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Đã xóa bài viết." });
+        }
+
+        [Authorize]
+        [HttpGet("my-tips")]
+        public async Task<IActionResult> GetMyTips()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+            var myTips = await _context.Tips
+                .Where(t => t.UserId == userId)
+                .Include(t => t.User)
+                .OrderByDescending(t => t.CreatedAt)
+                .Select(t => new
+                {
+                    Id = t.Id,
+                    Title = t.Title,
+                    Content = t.Content,
+                    ImageUrl = t.ImageUrl,
+                    CreatedAt = t.CreatedAt,
+                    VoteCount = t.VoteCount,
+                    SaveCount = t.SaveCount,
+                    UserId = t.UserId,
+                    Status = t.Status,
+                    AuthorName = t.User != null ? t.User.FullName : "Đầu bếp ẩn danh"
+                })
+                .ToListAsync();
+
+            return Ok(myTips);
+        }
+        [HttpPost("{id}/vote")]
+        [Authorize] 
+        public async Task<IActionResult> ToggleVote(int id)
+        {
+            var tip = await _context.Tips.FindAsync(id);
+            if (tip == null) return NotFound();
+
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            var activity = await _context.UserActivities
+                .FirstOrDefaultAsync(a => a.TipId == id && a.UserId == userId);
+
+            if (activity == null)
+            {
+                activity = new UserActivity { TipId = id, UserId = userId, IsVoted = true };
+                _context.UserActivities.Add(activity);
+                tip.VoteCount++;
+            }
+            else
+            {
+                activity.IsVoted = !activity.IsVoted;
+                tip.VoteCount += activity.IsVoted ? 1 : -1;
+            }
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { newCount = tip.VoteCount });
+        }
+        [HttpPost("{id}/save")]
+        [Authorize]
+        public async Task<IActionResult> ToggleSave(int id)
+        {
+            var tip = await _context.Tips.FindAsync(id);
+            if (tip == null) return NotFound();
+
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            var activity = await _context.UserActivities
+                .FirstOrDefaultAsync(a => a.TipId == id && a.UserId == userId);
+
+            if (activity == null)
+            {
+                activity = new UserActivity { TipId = id, UserId = userId, IsSaved = true };
+                _context.UserActivities.Add(activity);
+                tip.SaveCount++;
+            }
+            else
+            {
+                activity.IsSaved = !activity.IsSaved;
+                tip.SaveCount += activity.IsSaved ? 1 : -1;
+            }
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { newCount = tip.SaveCount });
+        }
+    }
+}
+
+
+
+=== FILE: C:\Users\windows\source\repos\DoAn_Web\DoAn_API\DoAn_API\Services\NutritionService.cs ===
+using DoAn_API.Data;
+using DoAn_API.Entities;
+using Microsoft.EntityFrameworkCore;
+
+namespace DoAn_API.Services
+{
+    public class NutritionService
+    {
+        private readonly ApplicationDbContext _context;
+
+        public NutritionService(ApplicationDbContext context)
+        {
+            _context = context;
+        }
+
+        public async Task CalculateTotalNutritionAsync(Recipe recipe)
+        {
+            if (recipe.RecipeIngredients == null || !recipe.RecipeIngredients.Any()) return;
+
+            double totalCalories = 0, totalProtein = 0, totalFat = 0, totalCarbs = 0;
+
+            var allNutritions = await _context.IngredientNutritions.ToListAsync();
+
+            foreach (var item in recipe.RecipeIngredients)
+            {
+                var nutrition = allNutritions.FirstOrDefault(n => n.Name.Equals(item.IngredientName, StringComparison.OrdinalIgnoreCase));
+
+                if (nutrition == null)
+                {
+                    nutrition = allNutritions.FirstOrDefault(n =>
+                        item.IngredientName.ToLower().Contains(n.Name.ToLower()) ||
+                        n.Name.ToLower().Contains(item.IngredientName.ToLower()));
+                }
+
+                if (nutrition != null)
+                {
+                    double amountInGrams = ConvertToGrams(item.Amount, item.Unit);
+
+                    double ratio = amountInGrams / 100.0;
+
+                    totalCalories += ratio * nutrition.Calories;
+                    totalProtein += ratio * nutrition.Protein;
+                    totalFat += ratio * nutrition.Fat;
+                    totalCarbs += ratio * nutrition.Carbs;
+                }
+            }
+
+            recipe.TotalCalories = Math.Round(totalCalories, 2);
+            recipe.TotalProtein = Math.Round(totalProtein, 2);
+            recipe.TotalFat = Math.Round(totalFat, 2);
+            recipe.TotalCarbs = Math.Round(totalCarbs, 2);
+        }
+
+        private double ConvertToGrams(double amount, string unit)
+        {
+            if (string.IsNullOrWhiteSpace(unit)) return amount;
+
+            string u = unit.ToLower().Trim();
+
+            switch (u)
+            {
+                case "kg":
+                case "kilogram":
+                    return amount * 1000.0;
+
+                case "lít":
+                case "l":
+                    return amount * 1000.0;
+
+                case "ml":
+                    return amount * 1.0;
+
+                case "muỗng canh":
+                case "tbsp":
+                    return amount * 15.0;
+
+                case "muỗng cà phê":
+                case "tsp":
+                    return amount * 5.0;
+
+                case "quả":
+                    return amount * 55.0;
+
+                case "gram":
+                case "g":
+                case "gr":
+                default:
+                    return amount;
+            }
+        }
+    }
+}
+
+
+

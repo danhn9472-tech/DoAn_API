@@ -28,7 +28,7 @@
         {
             public int StepNumber { get; set; }
             public string Instruction { get; set; }
-            public string ImageUrl { get; set; } 
+            public string? ImageUrl { get; set; } 
         }
     }
 }
