@@ -117,7 +117,6 @@ namespace DoAn_API.Controllers
 
                 await _nutritionService.CalculateTotalNutritionAsync(recipe);
 
-                // BƯỚC 3: LƯU TOÀN BỘ VÀO DATABASE
                 _context.Recipes.Add(recipe);
 
                 await _context.SaveChangesAsync();

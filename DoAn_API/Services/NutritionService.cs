@@ -53,7 +53,7 @@ namespace DoAn_API.Services
 
         private double ConvertToGrams(double amount, string unit)
         {
-            if (string.IsNullOrWhiteSpace(unit)) return amount; 
+            if (string.IsNullOrWhiteSpace(unit)) return amount;
 
             string u = unit.ToLower().Trim();
 
@@ -61,31 +61,31 @@ namespace DoAn_API.Services
             {
                 case "kg":
                 case "kilogram":
-                case "kí":
                     return amount * 1000.0;
 
-                case "l":
                 case "lít":
-                case "lit":
-                    return amount * 1000.0; 
+                case "l":
+                    return amount * 1000.0;
 
                 case "ml":
-                case "milliliter":
-                    return amount * 1.0; 
+                    return amount * 1.0;
 
                 case "muỗng canh":
                 case "tbsp":
-                    return amount * 15.0; 
+                    return amount * 15.0;
 
                 case "muỗng cà phê":
                 case "tsp":
-                    return amount * 5.0; 
+                    return amount * 5.0;
 
-                case "g":
+                case "quả":
+                    return amount * 55.0;
+
                 case "gram":
+                case "g":
                 case "gr":
                 default:
-                    return amount; 
+                    return amount;
             }
         }
     }

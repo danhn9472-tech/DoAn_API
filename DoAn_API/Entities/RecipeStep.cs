@@ -9,6 +9,7 @@ namespace DoAn_API.Entities
         public int StepOrder { get; set; }
         [Required]
         public string Content { get; set; }
+        public string? ImageUrl { get; set; }
 
         public virtual Recipe Recipe { get; set; }
     }
