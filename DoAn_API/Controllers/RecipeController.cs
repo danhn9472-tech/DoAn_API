@@ -133,6 +133,59 @@ namespace DoAn_API.Controllers
             }
         }
 
+        [HttpPut("{id}")]
+        [Authorize]
+        public async Task<IActionResult> PutRecipe(int id, [FromBody] UpdateRecipeDto dto)
+        {
+            var recipe = await _context.Recipes
+                .Include(r => r.RecipeIngredients)
+                .Include(r => r.RecipeSteps)
+                .Include(r => r.RecipeCategories)
+                .FirstOrDefaultAsync(r => r.Id == id);
+
+            if (recipe == null) return NotFound(new { message = "Không tìm thấy công thức." });
+
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (recipe.UserId != userId && !User.IsInRole("Admin")) return Forbid();
+
+            recipe.Title = dto.Title;
+            recipe.Description = dto.Description;
+            recipe.CookTime = dto.CookTime;
+            recipe.Difficulty = (DifficultyLevel)dto.Difficulty;
+            if (!string.IsNullOrEmpty(dto.ImageUrl)) recipe.ImageUrl = dto.ImageUrl;
+
+            _context.RecipeIngredients.RemoveRange(recipe.RecipeIngredients);
+            _context.RecipeSteps.RemoveRange(recipe.RecipeSteps);
+            recipe.RecipeCategories.Clear();
+
+            foreach (var catId in dto.CategoryIds)
+            {
+                recipe.RecipeCategories.Add(new RecipeCategory { CategoryId = catId });
+            }
+
+            recipe.RecipeIngredients = dto.Ingredients.Select(i => new RecipeIngredient
+            {
+                IngredientName = i.IngredientName,
+                Amount = i.Amount,
+                Unit = i.Unit
+            }).ToList();
+
+            int stepNum = 1;
+            recipe.RecipeSteps = dto.Steps.Select(s => new RecipeStep
+            {
+                StepOrder = stepNum++,
+                Content = s.Instruction,
+                ImageUrl = s.ImageUrl
+            }).ToList();
+
+            // Đưa trạng thái về Pending để Admin duyệt lại (nếu hệ thống bạn cần duyệt)
+            recipe.Status = PostStatus.Pending;
+
+            await _context.SaveChangesAsync();
+            return Ok(new { message = "Cập nhật thành công!", id = recipe.Id });
+        }
+
+
         // DELETE: api/Recipes
         [Authorize]
         [HttpDelete("{id}")]
