@@ -53,23 +53,33 @@ namespace DoAn_API.Controllers
                 Content = dto.Content,
                 UserId = userId,
                 RecipeId = dto.RecipeId,
-                TipId = dto.TipId
+                TipId = dto.TipId,
+                CreatedAt = DateTime.Now 
             };
 
             _context.Comments.Add(comment);
             await _context.SaveChangesAsync();
-            return Ok(comment);
+
+            return Ok(new
+            {
+                id = comment.Id,
+                content = comment.Content,
+                createdAt = comment.CreatedAt
+            });
         }
+
+        [AllowAnonymous]
         [HttpGet("recipe/{recipeId}/comments")]
         public async Task<IActionResult> GetRecipeComments(int recipeId)
         {
             var comments = await _context.Comments
                 .Where(c => c.RecipeId == recipeId)
-                .Include(c => c.User) 
+                .Include(c => c.User)
                 .OrderByDescending(c => c.CreatedAt)
                 .Select(c => new {
                     id = c.Id,
                     content = c.Content,
+                    createdAt = c.CreatedAt, 
                     authorName = c.User != null ? (c.User.FullName ?? c.User.UserName) : "Thành viên NutriCook"
                 })
                 .ToListAsync();
@@ -79,20 +89,30 @@ namespace DoAn_API.Controllers
 
 
         // -------LƯU CÔNG THỨC-------
-        [Authorize]
-        [HttpGet("saved-recipes")]
-        public async Task<IActionResult> GetSavedRecipes()
+        [HttpPost("save-recipe/{id}")]
+        public async Task<IActionResult> SaveRecipe(int id)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var recipe = await _context.Recipes.FindAsync(id);
+            if (recipe == null) return NotFound();
 
-            var savedRecipes = await _context.UserActivities
-                .Where(ua => ua.UserId == userId && ua.IsSaved == true && ua.RecipeId != null)
-                .Include(ua => ua.Recipe) 
-                    .ThenInclude(r => r.RecipeIngredients) 
-                .Select(ua => ua.Recipe) 
-                .ToListAsync();
+            var activity = await _context.UserActivities
+                .FirstOrDefaultAsync(x => x.UserId == userId && x.RecipeId == id);
 
-            return Ok(savedRecipes);
+            if (activity == null)
+            {
+                _context.UserActivities.Add(new UserActivity { UserId = userId, RecipeId = id, IsSaved = true });
+                recipe.SaveCount++;
+            }
+            else
+            {
+                activity.IsSaved = !activity.IsSaved;
+                recipe.SaveCount = activity.IsSaved ? recipe.SaveCount + 1 : recipe.SaveCount - 1;
+            }
+
+            await _context.SaveChangesAsync();
+            // Chú ý: Trả về chữ "count" cho giống với VoteRecipe
+            return Ok(new { count = recipe.SaveCount, status = activity?.IsSaved ?? true });
         }
 
         // GỬI BÁO CÁO BÌNH LUẬN

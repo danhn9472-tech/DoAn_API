@@ -167,6 +167,31 @@ namespace DoAn_API.Controllers
             return Ok(new { message = "Xóa công thức thành công." });
         }
 
+        [HttpGet("top/{count}")]
+        [AllowAnonymous] 
+        public async Task<IActionResult> GetTopRecipes(int count)
+        {
+            var recipes = await _context.Recipes
+                .Where(r => r.Status == PostStatus.Approved)
+                .Include(r => r.User)
+                .OrderByDescending(r => r.Id)
+                .Take(count) 
+                .Select(r => new
+                {
+                    Id = r.Id,
+                    Title = r.Title,
+                    Description = r.Description,
+                    ImageUrl = r.ImageUrl,
+                    CookTime = r.CookTime,
+                    TotalCalories = r.TotalCalories,
+                    VoteCount = r.VoteCount,
+                    AuthorName = r.User != null ? (r.User.FullName ?? r.User.UserName) : "Đầu bếp gia đình"
+                })
+                .ToListAsync();
+
+            return Ok(recipes);
+        }
+
         [HttpPost("analyze-nutrition")]
         public async Task<IActionResult> AnalyzeNutrition([FromBody] AnalyzeRequestDTOs dto)
         {

@@ -19,3 +19,45 @@
 
 
 
+=== FILE: C:\Users\windows\source\repos\DoAn_Web\DoAn_API\DoAn_API\appsettings.json ===
+{
+    "ConnectionStrings": {
+        "DefaultConnection": "Server=(localdb)\\mssqllocaldb;Database=NutriCookDb;Trusted_Connection=True;MultipleActiveResultSets=true"
+    },
+    "Jwt": {
+        "Key": "Chuoi_Bi_Mat_Cuc_Ky_Dai_Va_An_Toan_123!",
+        "Issuer": "https://localhost:5092",
+        "Audience": "https://localhost:5158"
+    },
+    "Logging": {
+        "LogLevel": {
+            "Default": "Information",
+            "Microsoft.AspNetCore": "Warning"
+        }
+    },
+    "AllowedHosts": "*"
+}
+
+
+
+=== FILE: C:\Users\windows\source\repos\DoAn_Web\DoAn_API\DoAn_API\appsettings.json ===
+{
+    "ConnectionStrings": {
+        "DefaultConnection": "Server=(localdb)\\mssqllocaldb;Database=NutriCookDb;Trusted_Connection=True;MultipleActiveResultSets=true"
+    },
+    "Jwt": {
+        "Key": "Chuoi_Bi_Mat_Cuc_Ky_Dai_Va_An_Toan_123!",
+        "Issuer": "https://localhost:5092",
+        "Audience": "https://localhost:5158"
+    },
+    "Logging": {
+        "LogLevel": {
+            "Default": "Information",
+            "Microsoft.AspNetCore": "Warning"
+        }
+    },
+    "AllowedHosts": "*"
+}
+
+
+

@@ -57,8 +57,30 @@ namespace DoAn_API.Controllers
 
             return Ok(tip);
         }
+        [HttpGet("top/{count}")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetTopTips(int count)
+        {
+            var tips = await _context.Tips
+                .Where(t => t.Status == PostStatus.Approved)
+                .Include(t => t.User)
+                .OrderByDescending(t => t.CreatedAt)
+                .Take(count)
+                .Select(t => new
+                {
+                    Id = t.Id,
+                    Title = t.Title,
+                    Content = t.Content,
+                    ImageUrl = t.ImageUrl,
+                    CreatedAt = t.CreatedAt,
+                    VoteCount = t.VoteCount,
+                    AuthorName = t.User != null ? t.User.FullName : "Đầu bếp gia đình"
+                })
+                .ToListAsync();
 
-        // Tạo bài viết Tip mới (Yêu cầu đăng nhập)
+            return Ok(tips);
+        }
+
         [Authorize]
         [HttpPost]
         public async Task<ActionResult<Tip>> PostTip([FromBody] TipDTOs.CreateTipDto dto)
@@ -82,7 +104,6 @@ namespace DoAn_API.Controllers
             return Ok(new { message = "Đăng bài viết thành công!", tipId = tip.Id });
         }
 
-        // Chỉnh sửa bài viết (Chỉ chủ bài viết hoặc Admin)
         [Authorize]
         [HttpPut("{id}")]
         public async Task<IActionResult> PutTip(int id, [FromBody] TipDTOs.CreateTipDto dto)
@@ -105,7 +126,6 @@ namespace DoAn_API.Controllers
             return Ok(new { message = "Cập nhật bài viết thành công!", tipId = tip.Id });
         }
 
-        // Xóa bài viết (Chỉ chủ bài viết hoặc Admin)
         [Authorize]
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteTip(int id)
