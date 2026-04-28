@@ -2,6 +2,7 @@
 using DoAn_API.DTOs;
 using DoAn_API.Entities;
 using DoAn_API.Entities.Enums;
+using DoAn_API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -14,13 +15,15 @@ namespace DoAn_API.Controllers
     public class TipsController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
+        private readonly ITopItemsService _topItemsService;
 
-        public TipsController(ApplicationDbContext context)
+        public TipsController(ApplicationDbContext context, ITopItemsService topItemsService)
         {
             _context = context;
+            _topItemsService = topItemsService;
         }
 
-        // GET: api/Tips
+        //-------LẤY DANH SÁCH BÀI VIẾT-------
         [HttpGet]
         public async Task<IActionResult> GetTips()
         {
@@ -45,6 +48,7 @@ namespace DoAn_API.Controllers
 
             return Ok(tips);
         }
+        //-------LẤY THÔNG TIN CHI TIẾT BÀI VIẾT THEO ID-------
         [HttpGet("{id}")]
         public async Task<IActionResult> GetTipById(int id)
         {
@@ -57,30 +61,15 @@ namespace DoAn_API.Controllers
 
             return Ok(tip);
         }
+        //-------LẤY DANH SÁCH BÀI VIẾT MỚI NHẤT-------
         [HttpGet("top/{count}")]
         [AllowAnonymous]
         public async Task<IActionResult> GetTopTips(int count)
         {
-            var tips = await _context.Tips
-                .Where(t => t.Status == PostStatus.Approved)
-                .Include(t => t.User)
-                .OrderByDescending(t => t.CreatedAt)
-                .Take(count)
-                .Select(t => new
-                {
-                    Id = t.Id,
-                    Title = t.Title,
-                    Content = t.Content,
-                    ImageUrl = t.ImageUrl,
-                    CreatedAt = t.CreatedAt,
-                    VoteCount = t.VoteCount,
-                    AuthorName = t.User != null ? t.User.FullName : "Đầu bếp gia đình"
-                })
-                .ToListAsync();
-
+            var tips = await _topItemsService.GetTopTipsAsync(count);
             return Ok(tips);
         }
-
+        //-------TẠO MỚI BÀI VIẾT-------
         [Authorize]
         [HttpPost]
         public async Task<ActionResult<Tip>> PostTip([FromBody] TipDTOs.CreateTipDto dto)
@@ -103,7 +92,7 @@ namespace DoAn_API.Controllers
 
             return Ok(new { message = "Đăng bài viết thành công!", tipId = tip.Id });
         }
-
+        //-------CẬP NHẬT BÀI VIẾT THEO ID-------
         [Authorize]
         [HttpPut("{id}")]
         public async Task<IActionResult> PutTip(int id, [FromBody] TipDTOs.CreateTipDto dto)
@@ -125,7 +114,7 @@ namespace DoAn_API.Controllers
 
             return Ok(new { message = "Cập nhật bài viết thành công!", tipId = tip.Id });
         }
-
+        //-------XÓA BÀI VIẾT THEO ID-------
         [Authorize]
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteTip(int id)
@@ -149,7 +138,7 @@ namespace DoAn_API.Controllers
 
             return Ok(new { message = "Đã xóa bài viết." });
         }
-
+        //-------LẤY DANH SÁCH BÀI VIẾT CỦA NGƯỜI DÙNG ĐANG ĐĂNG NHẬP-------
         [Authorize]
         [HttpGet("my-tips")]
         public async Task<IActionResult> GetMyTips()
@@ -178,9 +167,16 @@ namespace DoAn_API.Controllers
 
             return Ok(myTips);
         }
+        //-------THÊM HOẶC BỎ VOTE CHO BÀI VIẾT THEO ID------- [DEPRECATED - Use /api/Interaction/vote/tip/{id}]
         [HttpPost("{id}/vote")]
         [Authorize] 
-        public async Task<IActionResult> ToggleVote(int id)
+        public async Task<IActionResult> ToggleVoteOld(int id)
+        {
+            // ⚠️ DEPRECATED: Redirect to new unified endpoint
+            return await ToggleVoteInternal(id);
+        }
+
+        private async Task<IActionResult> ToggleVoteInternal(int id)
         {
             var tip = await _context.Tips.FindAsync(id);
             if (tip == null) return NotFound();
@@ -206,9 +202,16 @@ namespace DoAn_API.Controllers
 
             return Ok(new { newCount = tip.VoteCount });
         }
+
+        //-------THÊM HOẶC BỎ LƯU BÀI VIẾT THEO ID------- 
         [HttpPost("{id}/save")]
         [Authorize]
-        public async Task<IActionResult> ToggleSave(int id)
+        public async Task<IActionResult> ToggleSaveOld(int id)
+        {
+            return await ToggleSaveInternal(id);
+        }
+
+        private async Task<IActionResult> ToggleSaveInternal(int id)
         {
             var tip = await _context.Tips.FindAsync(id);
             if (tip == null) return NotFound();
@@ -232,7 +235,7 @@ namespace DoAn_API.Controllers
 
             await _context.SaveChangesAsync();
 
-            return Ok(new { newCount = tip.SaveCount });
+            return Ok(new { count = tip.SaveCount, status = activity?.IsSaved ?? true });
         }
     }
 }

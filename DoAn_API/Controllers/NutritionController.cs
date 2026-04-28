@@ -2,8 +2,11 @@
 using DoAn_API.DTOs;
 using DoAn_API.Entities;
 using DoAn_API.Services;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Text;
+using System.Text.Json;
 
 namespace DoAn_API.Controllers
 {
@@ -13,11 +16,13 @@ namespace DoAn_API.Controllers
     {
         private readonly NutritionService _nutritionService;
         private readonly ApplicationDbContext _context;
+        private readonly IConfiguration _configuration;
 
-        public NutritionController(NutritionService nutritionService, ApplicationDbContext context)
+        public NutritionController(NutritionService nutritionService, ApplicationDbContext context, IConfiguration configuration)
         {
             _nutritionService = nutritionService;
             _context = context;
+            _configuration = configuration;
         }
 
         [HttpPost("calculate")]

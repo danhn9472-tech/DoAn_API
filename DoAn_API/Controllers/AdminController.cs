@@ -1,9 +1,11 @@
 ﻿using DoAn_API.Data;
 using DoAn_API.DTOs;
+using DoAn_API.Entities;
 using DoAn_API.Entities.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using static DoAn_API.DTOs.CategoryDTOs;
 
 namespace DoAn_API.Controllers
 {
@@ -78,6 +80,85 @@ namespace DoAn_API.Controllers
             };
 
             return Ok(stats);
+        }
+        // ------DUYỆT RECIPE VÀ TIP------
+        [HttpGet("pending-posts")]
+        public async Task<IActionResult> GetPendingPosts()
+        {
+            var recipes = await _context.Recipes
+                .Where(r => r.Status == PostStatus.Pending)
+                .Select(r => new PendingPostDto
+                {
+                    Id = r.Id,
+                    Title = r.Title,
+                    AuthorName = r.AuthorName,
+                    CreatedAt = r.CreatedAt,
+                    Type = "Recipe",
+                    ImageUrl = r.ImageUrl
+                }).ToListAsync();
+
+            var tips = await _context.Tips
+                .Where(t => t.Status == PostStatus.Pending)
+                .Select(t => new PendingPostDto
+                {
+                    Id = t.Id,
+                    Title = t.Title,
+                    AuthorName = t.AuthorName,
+                    CreatedAt = t.CreatedAt,
+                    Type = "Tip",
+                    ImageUrl = t.ImageUrl
+                }).ToListAsync();
+
+            return Ok(recipes.Concat(tips).OrderByDescending(p => p.CreatedAt));
+        }
+
+        [HttpPost("approve-post")]
+        public async Task<IActionResult> ApprovePost(int id, string type, int newStatus)
+        {
+            if (type == "Recipe")
+            {
+                var recipe = await _context.Recipes.FindAsync(id);
+                if (recipe == null) return NotFound();
+                recipe.Status = (PostStatus)newStatus;
+            }
+            else
+            {
+                var tip = await _context.Tips.FindAsync(id);
+                if (tip == null) return NotFound();
+                tip.Status = (PostStatus)newStatus;
+            }
+
+            await _context.SaveChangesAsync();
+            return Ok(new { message = "Cập nhật trạng thái thành công!" });
+        }
+        [HttpPost("categories")]
+        public async Task<IActionResult> CreateCategory([FromBody] CategoryTreeDto dto)
+        {
+            var category = new Category
+            {
+                Name = dto.Name,
+                Type = dto.Type ?? "Recipe", 
+                ParentId = dto.ParentId == 0 ? null : dto.ParentId 
+            };
+
+            _context.Categories.Add(category);
+            await _context.SaveChangesAsync();
+            return Ok(category);
+        }
+
+        // [PUT] api/Admin/categories/{id}
+        [HttpPut("categories/{id}")]
+        public async Task<IActionResult> UpdateCategory(int id, [FromBody] CategoryTreeDto dto)
+        {
+            var existing = await _context.Categories.FindAsync(id);
+            if (existing == null) return NotFound();
+
+            existing.Name = dto.Name;
+            existing.Type = dto.Type ?? "Recipe";
+            existing.ParentId = dto.ParentId == 0 ? null : dto.ParentId;
+
+            await _context.SaveChangesAsync();
+            return Ok(existing);
         }
     }
 }

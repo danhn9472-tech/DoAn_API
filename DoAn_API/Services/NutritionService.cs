@@ -23,13 +23,13 @@ namespace DoAn_API.Services
 
             foreach (var item in recipe.RecipeIngredients)
             {
-                var nutrition = allNutritions.FirstOrDefault(n => n.Name.Equals(item.IngredientName, StringComparison.OrdinalIgnoreCase));
+                var nutrition = allNutritions.FirstOrDefault(n => n.Name.Equals(item.Ingredient.Name, StringComparison.OrdinalIgnoreCase));
 
                 if (nutrition == null)
                 {
                     nutrition = allNutritions.FirstOrDefault(n =>
-                        item.IngredientName.ToLower().Contains(n.Name.ToLower()) ||
-                        n.Name.ToLower().Contains(item.IngredientName.ToLower()));
+                        item.Ingredient.Name.ToLower().Contains(n.Name.ToLower()) ||
+                        n.Name.ToLower().Contains(item.Ingredient.Name.ToLower()));
                 }
 
                 if (nutrition != null)
@@ -74,6 +74,15 @@ namespace DoAn_API.Services
                 case "muỗng canh":
                 case "tbsp":
                     return amount * 15.0;
+
+                case "lá":
+                    return amount * 2.0;
+
+                case "cọng":
+                    return amount * 10.0;
+
+                case "chén":
+                    return amount * 150.0;
 
                 case "muỗng cà phê":
                 case "tsp":

@@ -13,16 +13,13 @@ var builder = WebApplication.CreateBuilder(args);
 
 var jwtSettings = builder.Configuration.GetSection("Jwt");
 var key = Encoding.ASCII.GetBytes(jwtSettings["Key"]);
-// Add services to the container.
 
 builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new OpenApiInfo { Title = "NutriCook API", Version = "v1" });
 
-    // Cấu hình định dạng nút Authorize
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Name = "Authorization",
@@ -32,8 +29,6 @@ builder.Services.AddSwaggerGen(options =>
         In = ParameterLocation.Header,
         Description = "Nhập JWT token của bạn vào đây.\n\nVí dụ: eyJhbGciOiJIUzI1NiIsInR..."
     });
-
-    // Yêu cầu Swagger đính kèm token vào mọi request
     options.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
         {
@@ -95,6 +90,7 @@ builder.Services.AddControllers()
     });
 
 builder.Services.AddScoped<NutritionService>();
+builder.Services.AddScoped<ITopItemsService, TopItemsService>();
 
 var app = builder.Build();
 
