@@ -1,4 +1,4 @@
-﻿namespace DoAn_API.DTOs
+﻿﻿namespace DoAn_API.DTOs
 {
     public class UpdateRecipeDto
     {
@@ -14,7 +14,7 @@
 
         public class UpdateIngredientDto
         {
-            public string IngredientName { get; set; }
+            public int IngredientId { get; set; }
             public double Amount { get; set; }
             public string Unit { get; set; }
         }

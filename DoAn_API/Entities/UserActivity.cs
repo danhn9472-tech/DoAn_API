@@ -1,3 +1,4 @@
+﻿using System.ComponentModel.DataAnnotations;
 ﻿using System.ComponentModel.DataAnnotations.Schema;
 
 namespace DoAn_API.Entities
@@ -11,15 +12,11 @@ namespace DoAn_API.Entities
         [ForeignKey("UserId")]
         public virtual ApplicationUser User { get; set; }
 
-        public int? RecipeId { get; set; }
-
-        [ForeignKey("RecipeId")]
-        public virtual Recipe? Recipe { get; set; }
-
-        public int? TipId { get; set; }
-
-        [ForeignKey("TipId")]
-        public virtual Tip? Tip { get; set; }
+        [Required]
+        public int PostId { get; set; }
+        
+        [ForeignKey("PostId")]
+        public virtual Post Post { get; set; }
 
         public bool IsVoted { get; set; }
         public bool IsSaved { get; set; }

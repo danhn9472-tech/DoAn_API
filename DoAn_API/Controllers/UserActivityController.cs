@@ -27,33 +27,34 @@ namespace DoAn_API.Controllers
 
             var savedActivities = await _context.UserActivities
                 .Where(a => a.UserId == userId && a.IsSaved)
-                .Include(a => a.Recipe)
-                .Include(a => a.Tip)
+                .Include(a => a.Post)
                 .ToListAsync();
 
             var result = new SavedItemsDto();
 
             result.SavedRecipes = savedActivities
-                .Where(a => a.RecipeId != null && a.Recipe != null)
-                .Select(a => new SavedRecipeDto
+                .Where(a => a.Post is Recipe)
+                .Select(a => (Recipe)a.Post)
+                .Select(r => new SavedRecipeDto
                 {
-                    Id = a.Recipe.Id,
-                    Title = a.Recipe.Title,
-                    ImageUrl = a.Recipe.ImageUrl,
-                    CookTime = a.Recipe.CookTime,
-                    TotalCalories = a.Recipe.TotalCalories,
-                    AuthorName = a.Recipe.AuthorName ?? "Ẩn danh"
+                    Id = r.Id,
+                    Title = r.Title,
+                    ImageUrl = r.ImageUrl,
+                    CookTime = r.CookTime,
+                    TotalCalories = r.TotalCalories,
+                    AuthorName = r.AuthorName ?? "Ẩn danh"
                 }).ToList();
 
             result.SavedTips = savedActivities
-                .Where(a => a.TipId != null && a.Tip != null)
-                .Select(a => new SavedTipDto
+                .Where(a => a.Post is Tip)
+                .Select(a => (Tip)a.Post)
+                .Select(t => new SavedTipDto
                 {
-                    Id = a.Tip.Id,
-                    Title = a.Tip.Title,
-                    ImageUrl = a.Tip.ImageUrl,
-                    AuthorName = a.Tip.AuthorName ?? "Ẩn danh",
-                    CreatedAt = a.Tip.CreatedAt
+                    Id = t.Id,
+                    Title = t.Title,
+                    ImageUrl = t.ImageUrl,
+                    AuthorName = t.AuthorName ?? "Ẩn danh",
+                    CreatedAt = t.CreatedAt
                 }).ToList();
 
             return Ok(result);

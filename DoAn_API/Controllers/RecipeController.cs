@@ -1,4 +1,4 @@
-﻿using DoAn_API.Data;
+﻿﻿using DoAn_API.Data;
 using DoAn_API.DTOs;
 using DoAn_API.Entities;
 using DoAn_API.Entities.Enums;
@@ -111,7 +111,7 @@ namespace DoAn_API.Controllers
                     RecipeIngredients = dto.Ingredients != null
                         ? dto.Ingredients.Select(i => new RecipeIngredient
                         {
-                            IngredientName = i.IngredientName,
+                            IngredientId = i.IngredientId,
                             Amount = i.Amount,
                             Unit = i.Unit
                         }).ToList()
@@ -180,7 +180,7 @@ namespace DoAn_API.Controllers
             // Thêm mới nguyên liệu và tính toán lại dinh dưỡng
             recipe.RecipeIngredients = dto.Ingredients.Select(i => new RecipeIngredient
             {
-                IngredientName = i.IngredientName,
+                IngredientId = i.IngredientId,
                 Amount = i.Amount,
                 Unit = i.Unit
             }).ToList();
@@ -223,7 +223,7 @@ namespace DoAn_API.Controllers
             }
 
             // Xóa tương tác và bình luận trước
-            var activities = _context.UserActivities.Where(ua => ua.RecipeId == id);
+            var activities = _context.UserActivities.Where(ua => ua.PostId == id);
             _context.UserActivities.RemoveRange(activities);
 
             if (recipe.Comments != null && recipe.Comments.Any())

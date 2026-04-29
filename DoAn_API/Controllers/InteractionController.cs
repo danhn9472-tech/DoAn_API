@@ -1,4 +1,4 @@
-﻿﻿using DoAn_API.Data;
+﻿﻿﻿﻿using DoAn_API.Data;
 using DoAn_API.DTOs;
 using DoAn_API.Entities;
 using Microsoft.AspNetCore.Authorization;
@@ -88,13 +88,16 @@ namespace DoAn_API.Controllers
         public async Task<IActionResult> PostComment([FromBody] CommentDto dto)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            var post = await _context.Posts.FindAsync(dto.PostId);
+            if (post == null) return NotFound(new { message = "Bài viết không tồn tại." });
+
             var comment = new Comment
             {
                 Content = dto.Content,
                 UserId = userId,
-                RecipeId = dto.RecipeId,
-                TipId = dto.TipId,
-                CreatedAt = DateTime.Now 
+                PostId = dto.PostId,
+                CreatedAt = DateTime.UtcNow 
             };
 
             _context.Comments.Add(comment);

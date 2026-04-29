@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace DoAn_API.Entities
@@ -9,19 +9,16 @@ namespace DoAn_API.Entities
         public int Id { get; set; }
         [Required]
         public string Content { get; set; }
-        public DateTime CreatedAt { get; set; } = DateTime.Now;
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         [Required]
         public string UserId { get; set; }
         [ForeignKey("UserId")]
         public virtual ApplicationUser User { get; set; }
 
-        public int? RecipeId { get; set; }
-        [ForeignKey("RecipeId")]
-        public virtual Recipe? Recipe { get; set; }
-
-        public int? TipId { get; set; }
-        [ForeignKey("TipId")]
-        public virtual Tip? Tip { get; set; }
+        [Required]
+        public int PostId { get; set; }
+        [ForeignKey("PostId")]
+        public virtual Post Post { get; set; }
     }
 }

@@ -1,4 +1,4 @@
-﻿using DoAn_API.Data;
+﻿﻿using DoAn_API.Data;
 using DoAn_API.DTOs;
 using DoAn_API.Entities;
 using DoAn_API.Entities.Enums;
@@ -125,7 +125,7 @@ namespace DoAn_API.Controllers
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (tip.UserId != userId && !User.IsInRole("Admin")) return Forbid();
 
-            var activities = _context.UserActivities.Where(ua => ua.TipId == id);
+            var activities = _context.UserActivities.Where(ua => ua.PostId == id);
             _context.UserActivities.RemoveRange(activities);
 
             if (tip.Comments != null && tip.Comments.Any())
@@ -184,11 +184,11 @@ namespace DoAn_API.Controllers
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
             var activity = await _context.UserActivities
-                .FirstOrDefaultAsync(a => a.TipId == id && a.UserId == userId);
+                .FirstOrDefaultAsync(a => a.PostId == id && a.UserId == userId);
 
             if (activity == null)
             {
-                activity = new UserActivity { TipId = id, UserId = userId, IsVoted = true };
+                activity = new UserActivity { PostId = id, UserId = userId, IsVoted = true };
                 _context.UserActivities.Add(activity);
                 tip.VoteCount++;
             }
@@ -219,11 +219,11 @@ namespace DoAn_API.Controllers
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
             var activity = await _context.UserActivities
-                .FirstOrDefaultAsync(a => a.TipId == id && a.UserId == userId);
+                .FirstOrDefaultAsync(a => a.PostId == id && a.UserId == userId);
 
             if (activity == null)
             {
-                activity = new UserActivity { TipId = id, UserId = userId, IsSaved = true };
+                activity = new UserActivity { PostId = id, UserId = userId, IsSaved = true };
                 _context.UserActivities.Add(activity);
                 tip.SaveCount++;
             }

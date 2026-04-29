@@ -1,4 +1,4 @@
-﻿using DoAn_API.Entities;
+﻿﻿using DoAn_API.Entities;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,6 +8,7 @@ namespace DoAn_API.Data
     {
             public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options) { }
 
+            public DbSet<Post> Posts { get; set; }
             public DbSet<Recipe> Recipes { get; set; }
             public DbSet<RecipeIngredient> RecipeIngredients { get; set; }
             public DbSet<RecipeStep> RecipeSteps { get; set; }
@@ -22,6 +23,12 @@ namespace DoAn_API.Data
         {
             base.OnModelCreating(builder);
 
+            // Thiết lập Kế thừa (TPH - Table Per Hierarchy)
+            builder.Entity<Post>()
+                .HasDiscriminator<string>("PostType")
+                .HasValue<Recipe>("Recipe")
+                .HasValue<Tip>("Tip");
+
             // 1. Cấu hình cho bảng Comments (Tất cả chuyển về Restrict)
             builder.Entity<Comment>(entity =>
             {
@@ -31,16 +38,10 @@ namespace DoAn_API.Data
                       .HasForeignKey(c => c.UserId)
                       .OnDelete(DeleteBehavior.Restrict);
 
-                // Từ Recipe -> Comment
-                entity.HasOne(c => c.Recipe)
-                      .WithMany(r => r.Comments)
-                      .HasForeignKey(c => c.RecipeId)
-                      .OnDelete(DeleteBehavior.Restrict);
-
-                // Từ Tip -> Comment
-                entity.HasOne(c => c.Tip)
-                      .WithMany(t => t.Comments)
-                      .HasForeignKey(c => c.TipId)
+                // Từ Post -> Comment
+                entity.HasOne(c => c.Post)
+                      .WithMany(p => p.Comments)
+                      .HasForeignKey(c => c.PostId)
                       .OnDelete(DeleteBehavior.Restrict);
             });
 
@@ -52,14 +53,9 @@ namespace DoAn_API.Data
                       .HasForeignKey(ua => ua.UserId)
                       .OnDelete(DeleteBehavior.NoAction);
 
-                entity.HasOne(ua => ua.Recipe)
-                      .WithMany()
-                      .HasForeignKey(ua => ua.RecipeId)
-                      .OnDelete(DeleteBehavior.NoAction);
-
-                entity.HasOne(ua => ua.Tip)
-                      .WithMany()
-                      .HasForeignKey(ua => ua.TipId)
+                entity.HasOne(ua => ua.Post)
+                      .WithMany(p => p.Activities)
+                      .HasForeignKey(ua => ua.PostId)
                       .OnDelete(DeleteBehavior.NoAction);
             });
 

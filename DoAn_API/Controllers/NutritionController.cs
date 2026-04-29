@@ -34,7 +34,7 @@ namespace DoAn_API.Controllers
             {
                 RecipeIngredients = ingredients.Select(i => new RecipeIngredient
                 {
-                    IngredientName = i.IngredientName,
+                    IngredientId = i.IngredientId,
                     Amount = i.Amount,
                     Unit = i.Unit
                 }).ToList()
@@ -58,7 +58,7 @@ namespace DoAn_API.Controllers
 
             var suggestions = await _context.IngredientNutritions
                 .Where(i => i.Name.ToLower().Contains(term.ToLower()))
-                .Select(i => i.Name)
+                .Select(i => new { Id = i.Id, Name = i.Name })
                 .Take(10)
                 .ToListAsync();
 
