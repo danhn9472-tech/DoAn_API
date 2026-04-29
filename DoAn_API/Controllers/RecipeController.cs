@@ -333,38 +333,5 @@ namespace DoAn_API.Controllers
 
             return Ok(results);
         }
-
-        //-------LƯỚI CÔNG THỨC (DEPRECATED - Use /api/Interaction/save-recipe/{id} or /api/Interaction/save/recipe/{id})-------
-        // Frontend nên migrate sang /api/Interaction/save/recipe/{id}
-        [HttpPost("save/{id}")]
-        [Authorize]
-        public async Task<IActionResult> SaveRecipeOld(int id)
-        {
-            return await SaveRecipeInternal(id);
-        }
-
-        private async Task<IActionResult> SaveRecipeInternal(int id)
-        {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var recipe = await _context.Recipes.FindAsync(id);
-            if (recipe == null) return NotFound(new { message = "Công thức không tồn tại" });
-
-            var activity = await _context.UserActivities
-                .FirstOrDefaultAsync(x => x.UserId == userId && x.RecipeId == id);
-
-            if (activity == null)
-            {
-                _context.UserActivities.Add(new UserActivity { UserId = userId, RecipeId = id, IsSaved = true });
-                recipe.SaveCount++;
-            }
-            else
-            {
-                activity.IsSaved = !activity.IsSaved;
-                recipe.SaveCount = activity.IsSaved ? recipe.SaveCount + 1 : recipe.SaveCount - 1;
-            }
-
-            await _context.SaveChangesAsync();
-            return Ok(new { count = recipe.SaveCount, status = activity?.IsSaved ?? true });
-        }
     }
 }

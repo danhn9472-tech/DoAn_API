@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using DoAn_API.Entities;
 
 namespace DoAn_API.Controllers
 {
@@ -61,7 +62,6 @@ namespace DoAn_API.Controllers
         }
 
         [HttpGet("my-posts")]
-        [Authorize]
         public async Task<IActionResult> GetMyPosts()
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
