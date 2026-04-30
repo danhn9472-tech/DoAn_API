@@ -1,5 +1,6 @@
 ﻿﻿using DoAn_API.DTOs;
 using DoAn_API.Entities;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
@@ -108,6 +109,67 @@ namespace DoAn_API.Controllers
                 });
             }
             return Unauthorized(new { message = "Sai tên đăng nhập hoặc mật khẩu!" });
+        }
+
+        // 3. ĐỔI MẬT KHẨU
+        [Authorize]
+        [HttpPost("change-password")]
+        public async Task<IActionResult> ChangePassword([FromBody] AuthDTOs.ChangePasswordDto model)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user == null) return NotFound(new { message = "Không tìm thấy tài khoản." });
+
+            var result = await _userManager.ChangePasswordAsync(user, model.CurrentPassword, model.NewPassword);
+            
+            if (!result.Succeeded)
+                return BadRequest(new { message = "Đổi mật khẩu thất bại!", errors = result.Errors });
+
+            return Ok(new { message = "Đổi mật khẩu thành công!" });
+        }
+
+        // 4. CẬP NHẬT THÔNG TIN CÁ NHÂN
+        [Authorize]
+        [HttpPut("update-profile")]
+        public async Task<IActionResult> UpdateProfile([FromBody] AuthDTOs.UpdateProfileDto model)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user == null) return NotFound(new { message = "Không tìm thấy tài khoản." });
+
+            user.FullName = model.FullName;
+            user.Email = model.Email;
+
+            var result = await _userManager.UpdateAsync(user);
+            
+            if (!result.Succeeded)
+                return BadRequest(new { message = "Cập nhật thông tin thất bại!", errors = result.Errors });
+
+            return Ok(new { message = "Cập nhật thông tin cá nhân thành công!" });
+        }
+
+        // 5. LẤY THÔNG TIN CÁ NHÂN
+        [Authorize]
+        [HttpGet("profile")]
+        public async Task<IActionResult> GetProfile()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user == null) return NotFound(new { message = "Không tìm thấy tài khoản." });
+
+            return Ok(new AuthDTOs.UserProfileDto
+            {
+                Id = user.Id,
+                Username = user.UserName,
+                Email = user.Email,
+                FullName = user.FullName
+            });
         }
     }
 }

@@ -1,4 +1,4 @@
-﻿namespace DoAn_API.DTOs
+﻿﻿namespace DoAn_API.DTOs
 {
     public class AuthDTOs
     {
@@ -14,6 +14,26 @@
         {
             public string Username { get; set; }
             public string Password { get; set; }
+        }
+
+        public class ChangePasswordDto
+        {
+            public string CurrentPassword { get; set; }
+            public string NewPassword { get; set; }
+        }
+
+        public class UpdateProfileDto
+        {
+            public string FullName { get; set; }
+            public string Email { get; set; }
+        }
+
+        public class UserProfileDto
+        {
+            public string Id { get; set; }
+            public string Username { get; set; }
+            public string Email { get; set; }
+            public string FullName { get; set; }
         }
 
         public class AuthResponseDto
