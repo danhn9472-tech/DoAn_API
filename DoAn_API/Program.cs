@@ -91,6 +91,11 @@ builder.Services.AddControllers()
 
 builder.Services.AddScoped<NutritionService>();
 builder.Services.AddScoped<ITopItemsService, TopItemsService>();
+builder.Services.AddScoped<IRecipeService, RecipeService>();
+builder.Services.AddScoped<ITipService, TipService>();
+builder.Services.AddScoped<IInteractionService, InteractionService>();
+builder.Services.AddScoped<IUserActivityService, UserActivityService>();
+builder.Services.AddScoped<IAdminService, AdminService>();
 
 var app = builder.Build();
 

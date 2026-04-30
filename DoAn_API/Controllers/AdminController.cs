@@ -1,4 +1,4 @@
-﻿using DoAn_API.Data;
+﻿﻿﻿﻿using DoAn_API.Data;
 using DoAn_API.DTOs;
 using DoAn_API.Entities;
 using DoAn_API.Entities.Enums;
@@ -91,7 +91,7 @@ namespace DoAn_API.Controllers
                 {
                     Id = r.Id,
                     Title = r.Title,
-                    AuthorName = r.AuthorName,
+                    AuthorName = r.User != null ? (r.User.FullName ?? r.User.UserName) : "Ẩn danh",
                     CreatedAt = r.CreatedAt,
                     Type = "Recipe",
                     ImageUrl = r.ImageUrl
@@ -103,7 +103,7 @@ namespace DoAn_API.Controllers
                 {
                     Id = t.Id,
                     Title = t.Title,
-                    AuthorName = t.AuthorName,
+                    AuthorName = t.User != null ? (t.User.FullName ?? t.User.UserName) : "Ẩn danh",
                     CreatedAt = t.CreatedAt,
                     Type = "Tip",
                     ImageUrl = t.ImageUrl

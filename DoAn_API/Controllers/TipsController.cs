@@ -1,4 +1,4 @@
-﻿﻿using DoAn_API.Data;
+﻿﻿﻿﻿﻿﻿﻿﻿using DoAn_API.Data;
 using DoAn_API.DTOs;
 using DoAn_API.Entities;
 using DoAn_API.Entities.Enums;
@@ -14,45 +14,28 @@ namespace DoAn_API.Controllers
     [ApiController]
     public class TipsController : ControllerBase
     {
-        private readonly ApplicationDbContext _context;
         private readonly ITopItemsService _topItemsService;
+        private readonly ITipService _tipService;
 
-        public TipsController(ApplicationDbContext context, ITopItemsService topItemsService)
+        public TipsController(ITopItemsService topItemsService, ITipService tipService)
         {
-            _context = context;
             _topItemsService = topItemsService;
+            _tipService = tipService;
         }
 
         //-------LẤY DANH SÁCH BÀI VIẾT-------
         [HttpGet]
-        public async Task<IActionResult> GetTips()
+        public async Task<IActionResult> GetTips([FromQuery] int page = 1, [FromQuery] int pageSize = 16)
         {
-            var tips = await _context.Tips
-                .Where(t => t.Status == PostStatus.Approved) 
-                .Include(t => t.User)
-                .OrderByDescending(t => t.CreatedAt)
-                .Select(t => new
-                {
-                    Id = t.Id,
-                    Title = t.Title,
-                    Content = t.Content,
-                    ImageUrl = t.ImageUrl,
-                    CreatedAt = t.CreatedAt,
-                    VoteCount = t.VoteCount,
-                    SaveCount = t.SaveCount,
-                    UserId = t.UserId,
-                    Status = t.Status,
-                    AuthorName = t.User != null ? t.User.FullName : "Đầu bếp gia đình"
-                })
-                .ToListAsync();
-
-            return Ok(tips);
+            var result = await _tipService.GetTipsAsync(page, pageSize);
+            return Ok(result);
         }
+
         //-------LẤY THÔNG TIN CHI TIẾT BÀI VIẾT THEO ID-------
         [HttpGet("{id}")]
         public async Task<IActionResult> GetTipById(int id)
         {
-            var tip = await _context.Tips.FindAsync(id);
+            var tip = await _tipService.GetTipByIdAsync(id);
 
             if (tip == null)
             {
@@ -72,100 +55,74 @@ namespace DoAn_API.Controllers
         //-------TẠO MỚI BÀI VIẾT-------
         [Authorize]
         [HttpPost]
-        public async Task<ActionResult<Tip>> PostTip([FromBody] TipDTOs.CreateTipDto dto)
+        public async Task<IActionResult> PostTip([FromBody] TipDTOs.CreateTipDto dto)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
-            var tip = new Tip
+            try
             {
-                Title = dto.Title,
-                Content = dto.Content,
-                ImageUrl = dto.ImageUrl,
-                AuthorName = dto.AuthorName,
-                UserId = userId,
-                CreatedAt = DateTime.Now
-            };
-
-            _context.Tips.Add(tip);
-            await _context.SaveChangesAsync();
-
-            return Ok(new { message = "Đăng bài viết thành công!", tipId = tip.Id });
+                int tipId = await _tipService.CreateTipAsync(dto, userId);
+                return Ok(new { message = "Đăng bài viết thành công!", tipId = tipId });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, "Lỗi máy chủ: " + ex.Message);
+            }
         }
+
         //-------CẬP NHẬT BÀI VIẾT THEO ID-------
         [Authorize]
         [HttpPut("{id}")]
         public async Task<IActionResult> PutTip(int id, [FromBody] TipDTOs.CreateTipDto dto)
         {
-            var tip = await _context.Tips.FindAsync(id);
-            if (tip == null) return NotFound(new { message = "Không tìm thấy bài viết." });
-
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (tip.UserId != userId && !User.IsInRole("Admin"))
+            var isAdmin = User.IsInRole("Admin");
+
+            try
+            {
+                await _tipService.UpdateTipAsync(id, dto, userId, isAdmin);
+                return Ok(new { message = "Cập nhật bài viết thành công!", tipId = id });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (UnauthorizedAccessException)
             {
                 return Forbid();
             }
-
-            tip.Title = dto.Title;
-            tip.Content = dto.Content;
-            tip.ImageUrl = dto.ImageUrl;
-
-            await _context.SaveChangesAsync();
-
-            return Ok(new { message = "Cập nhật bài viết thành công!", tipId = tip.Id });
+            catch (Exception ex)
+            {
+                return StatusCode(500, "Lỗi máy chủ: " + ex.Message);
+            }
         }
+
         //-------XÓA BÀI VIẾT THEO ID-------
         [Authorize]
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteTip(int id)
         {
-            var tip = await _context.Tips.Include(t => t.Comments).FirstOrDefaultAsync(t => t.Id == id);
-            if (tip == null) return NotFound();
-
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (tip.UserId != userId && !User.IsInRole("Admin")) return Forbid();
+            var isAdmin = User.IsInRole("Admin");
 
-            var activities = _context.UserActivities.Where(ua => ua.PostId == id);
-            _context.UserActivities.RemoveRange(activities);
-
-            if (tip.Comments != null && tip.Comments.Any())
+            try
             {
-                _context.Comments.RemoveRange(tip.Comments);
+                await _tipService.DeleteTipAsync(id, userId, isAdmin);
+                return Ok(new { message = "Đã xóa bài viết." });
             }
-
-            _context.Tips.Remove(tip);
-            await _context.SaveChangesAsync();
-
-            return Ok(new { message = "Đã xóa bài viết." });
-        }
-        //-------LẤY DANH SÁCH BÀI VIẾT CỦA NGƯỜI DÙNG ĐANG ĐĂNG NHẬP-------
-        [Authorize]
-        [HttpGet("my-tips")]
-        public async Task<IActionResult> GetMyTips()
-        {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (string.IsNullOrEmpty(userId)) return Unauthorized();
-
-            var myTips = await _context.Tips
-                .Where(t => t.UserId == userId)
-                .Include(t => t.User)
-                .OrderByDescending(t => t.CreatedAt)
-                .Select(t => new
-                {
-                    Id = t.Id,
-                    Title = t.Title,
-                    Content = t.Content,
-                    ImageUrl = t.ImageUrl,
-                    CreatedAt = t.CreatedAt,
-                    VoteCount = t.VoteCount,
-                    SaveCount = t.SaveCount,
-                    UserId = t.UserId,
-                    Status = t.Status,
-                    AuthorName = t.User != null ? t.User.FullName : "Đầu bếp ẩn danh"
-                })
-                .ToListAsync();
-
-            return Ok(myTips);
+            catch (KeyNotFoundException)
+            {
+                return NotFound();
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Forbid();
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, "Lỗi máy chủ: " + ex.Message);
+            }
         }
     }
 }
