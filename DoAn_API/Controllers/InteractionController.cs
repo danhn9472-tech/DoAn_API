@@ -19,6 +19,8 @@ namespace DoAn_API.Controllers
             _interactionService = interactionService;
         }
 
+        private string CurrentUserId => User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+
         // -------UNIFIED VOTE ENDPOINT (recipe/tip)-------
         [HttpPost("vote/{itemType}/{itemId}")]
         public async Task<IActionResult> ToggleVote(string itemType, int itemId)
@@ -29,11 +31,11 @@ namespace DoAn_API.Controllers
                 return BadRequest(new { message = "Loại item không hợp lệ. Dùng 'recipe' hoặc 'tip'" });
             }
 
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(CurrentUserId)) return Unauthorized();
             
             try
             {
-                var result = await _interactionService.ToggleVoteAsync(itemType.ToLower(), itemId, userId);
+                var result = await _interactionService.ToggleVoteAsync(itemType.ToLower(), itemId, CurrentUserId);
                 return Ok(new { count = result.Count, status = result.Status });
             }
             catch (KeyNotFoundException ex)
@@ -46,9 +48,9 @@ namespace DoAn_API.Controllers
         [HttpPost("comment")]
         public async Task<IActionResult> PostComment([FromBody] CommentDto dto)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(CurrentUserId)) return Unauthorized();
             
-            var result = await _interactionService.PostCommentAsync(dto, userId);
+            var result = await _interactionService.PostCommentAsync(dto, CurrentUserId);
             
             return Ok(new {
                 id = result.Id,
@@ -91,11 +93,11 @@ namespace DoAn_API.Controllers
                 return BadRequest(new { message = "Loại item không hợp lệ. Dùng 'recipe' hoặc 'tip'" });
             }
 
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(CurrentUserId)) return Unauthorized();
             
             try
             {
-                var result = await _interactionService.ToggleSaveAsync(itemType.ToLower(), itemId, userId);
+                var result = await _interactionService.ToggleSaveAsync(itemType.ToLower(), itemId, CurrentUserId);
                 return Ok(new { count = result.Count, status = result.Status });
             }
             catch (KeyNotFoundException ex)
@@ -109,11 +111,39 @@ namespace DoAn_API.Controllers
         [HttpPost("comment/{commentId}/report")]
         public async Task<IActionResult> ReportComment(int commentId, [FromBody] ReportDTOs.CreateReportDto dto)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(CurrentUserId)) return Unauthorized();
             
             try
             {
-                await _interactionService.ReportCommentAsync(commentId, dto.Reason, userId);
+                await _interactionService.ReportCommentAsync(commentId, dto.Reason, CurrentUserId);
+                return Ok(new { message = "Cảm ơn bạn đã báo cáo. Chúng tôi sẽ xem xét sớm nhất." });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        // GỬI BÁO CÁO BÀI VIẾT (RECIPE / TIP)
+        [Authorize]
+        [HttpPost("report/{itemType}/{itemId}")]
+        public async Task<IActionResult> ReportPost(string itemType, int itemId, [FromBody] ReportDTOs.CreateReportDto dto)
+        {
+            var validTypes = new[] { "recipe", "tip" };
+            if (!validTypes.Contains(itemType.ToLower()))
+            {
+                return BadRequest(new { message = "Loại item không hợp lệ. Dùng 'recipe' hoặc 'tip'" });
+            }
+
+            if (string.IsNullOrEmpty(CurrentUserId)) return Unauthorized();
+            
+            try
+            {
+                await _interactionService.ReportPostAsync(itemType.ToLower(), itemId, dto.Reason, CurrentUserId);
                 return Ok(new { message = "Cảm ơn bạn đã báo cáo. Chúng tôi sẽ xem xét sớm nhất." });
             }
             catch (KeyNotFoundException ex)

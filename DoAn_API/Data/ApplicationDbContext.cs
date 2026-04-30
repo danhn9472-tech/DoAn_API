@@ -19,6 +19,8 @@ namespace DoAn_API.Data
             public DbSet<CommentReport> CommentReports { get; set; }
             public DbSet<Category> Categories { get; set; }
             public DbSet<RecipeCategory> RecipeCategories { get; set; }
+            public DbSet<PostReport> PostReports { get; set; }
+
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);

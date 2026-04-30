@@ -14,12 +14,10 @@ namespace DoAn_API.Controllers
     [ApiController]
     public class TipsController : ControllerBase
     {
-        private readonly ITopItemsService _topItemsService;
         private readonly ITipService _tipService;
 
-        public TipsController(ITopItemsService topItemsService, ITipService tipService)
+        public TipsController(ITipService tipService)
         {
-            _topItemsService = topItemsService;
             _tipService = tipService;
         }
 
@@ -49,7 +47,7 @@ namespace DoAn_API.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> GetTopTips(int count)
         {
-            var tips = await _topItemsService.GetTopTipsAsync(count);
+            var tips = await _tipService.GetTopTipsAsync(count);
             return Ok(tips);
         }
         //-------TẠO MỚI BÀI VIẾT-------

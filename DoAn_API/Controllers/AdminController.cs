@@ -1,4 +1,4 @@
-﻿﻿﻿﻿using DoAn_API.Data;
+﻿﻿using DoAn_API.Services;
 using DoAn_API.DTOs;
 using DoAn_API.Entities;
 using DoAn_API.Entities.Enums;
@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using static DoAn_API.DTOs.CategoryDTOs;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace DoAn_API.Controllers
 {
@@ -14,151 +16,131 @@ namespace DoAn_API.Controllers
     [ApiController]
     public class AdminController: ControllerBase
     {
-        private readonly ApplicationDbContext _context;
-        public AdminController(ApplicationDbContext context)
+        private readonly IAdminService _adminService;
+        
+        public AdminController(IAdminService adminService)
         {
-            _context = context;
+            _adminService = adminService;
         }
 
-        [HttpGet("reports/pending")]
-        public async Task<IActionResult> GetPendingReports()
+        // Lấy danh sách các báo cáo bình luận đang chờ xử lý
+        [HttpGet("comment-reports/pending")]
+        public async Task<IActionResult> GetPendingCommentReports()
         {
-            var reports = await _context.CommentReports
-                .Where(r => r.Status == Entities.Enums.ReportStatus.Pending)
-                .Include(r => r.User) 
-                .Include(r => r.Comment) 
-                    .ThenInclude(c => c.User) 
-                .Select(r => new {
-                    ReportId = r.Id,
-                    ReporterName = r.User.UserName,
-                    Reason = r.Reason,
-                    CommentContent = r.Comment.Content,
-                    CommentAuthor = r.Comment.User.UserName,
-                    ReportedAt = r.CreatedAt
-                })
-                .ToListAsync();
-
+            var reports = await _adminService.GetPendingCommentReportsAsync();
             return Ok(reports);
         }
 
-        [HttpPost("reports/{reportId}/resolve")]
-        public async Task<IActionResult> ResolveReport(int reportId, [FromQuery] bool deleteComment)
+        // Xử lý báo cáo bình luận (Ví dụ: Xóa bình luận và đánh dấu Resolved)
+        [HttpPost("comment-reports/{reportId}/resolve")]
+        public async Task<IActionResult> ResolveCommentReport(int reportId, [FromQuery] bool deleteComment, [FromQuery] bool banUser = false)
         {
-            var report = await _context.CommentReports
-                .Include(r => r.Comment)
-                .FirstOrDefaultAsync(r => r.Id == reportId);
-
-            if (report == null) return NotFound();
-
-            if (deleteComment && report.Comment != null)
+            try
             {
-                _context.Comments.Remove(report.Comment);
-                report.Status = Entities.Enums.ReportStatus.Resolved;
+                await _adminService.ResolveCommentReportAsync(reportId, deleteComment, banUser);
+                return Ok(new { message = "Đã xử lý báo cáo." });
             }
-            else
+            catch (KeyNotFoundException)
             {
-                report.Status = Entities.Enums.ReportStatus.Dismissed; // Bỏ qua nếu bình luận không vi phạm
+                return NotFound();
             }
+        }
 
-            await _context.SaveChangesAsync();
-            return Ok(new { message = "Đã xử lý báo cáo." });
+        // Lấy danh sách các báo cáo bài viết đang chờ xử lý
+        [HttpGet("post-reports/pending")]
+        public async Task<IActionResult> GetPendingPostReports()
+        {
+            var reports = await _adminService.GetPendingPostReportsAsync();
+            return Ok(reports);
+        }
+
+        // Xử lý báo cáo bài viết (Ví dụ: Xóa bài viết và đánh dấu Resolved)
+        [HttpPost("post-reports/{reportId}/resolve")]
+        public async Task<IActionResult> ResolvePostReport(int reportId, [FromQuery] bool deletePost, [FromQuery] bool banUser = false)
+        {
+            try
+            {
+                await _adminService.ResolvePostReportAsync(reportId, deletePost, banUser);
+                return Ok(new { message = "Đã xử lý báo cáo bài viết." });
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound();
+            }
+        }
+
+        // Lấy danh sách tất cả người dùng
+        [HttpGet("users")]
+        public async Task<IActionResult> GetUsers()
+        {
+            var users = await _adminService.GetUsersAsync();
+            return Ok(users);
+        }
+
+        // Khóa hoặc mở khóa tài khoản người dùng
+        [HttpPost("users/{userId}/toggle-lockout")]
+        public async Task<IActionResult> ToggleUserLockout(string userId)
+        {
+            try
+            {
+                await _adminService.ToggleUserLockoutAsync(userId);
+                return Ok(new { message = "Cập nhật trạng thái khóa tài khoản thành công." });
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound(new { message = "Không tìm thấy người dùng." });
+            }
         }
 
         [HttpGet("statistics")]
         public async Task<IActionResult> GetStatistics()
         {
-            var stats = new DashboardStatDto
-            {
-                TotalUsers = await _context.Users.CountAsync(),
-
-                TotalRecipes = await _context.Recipes.CountAsync(),
-
-                TotalTips = await _context.Tips.CountAsync(),
-
-                PendingPosts = await _context.Recipes.CountAsync(r => r.Status == PostStatus.Pending)
-                             + await _context.Tips.CountAsync(t => t.Status == PostStatus.Pending)
-            };
-
+            var stats = await _adminService.GetStatisticsAsync();
             return Ok(stats);
         }
+
         // ------DUYỆT RECIPE VÀ TIP------
         [HttpGet("pending-posts")]
         public async Task<IActionResult> GetPendingPosts()
         {
-            var recipes = await _context.Recipes
-                .Where(r => r.Status == PostStatus.Pending)
-                .Select(r => new PendingPostDto
-                {
-                    Id = r.Id,
-                    Title = r.Title,
-                    AuthorName = r.User != null ? (r.User.FullName ?? r.User.UserName) : "Ẩn danh",
-                    CreatedAt = r.CreatedAt,
-                    Type = "Recipe",
-                    ImageUrl = r.ImageUrl
-                }).ToListAsync();
-
-            var tips = await _context.Tips
-                .Where(t => t.Status == PostStatus.Pending)
-                .Select(t => new PendingPostDto
-                {
-                    Id = t.Id,
-                    Title = t.Title,
-                    AuthorName = t.User != null ? (t.User.FullName ?? t.User.UserName) : "Ẩn danh",
-                    CreatedAt = t.CreatedAt,
-                    Type = "Tip",
-                    ImageUrl = t.ImageUrl
-                }).ToListAsync();
-
-            return Ok(recipes.Concat(tips).OrderByDescending(p => p.CreatedAt));
+            var posts = await _adminService.GetPendingPostsAsync();
+            return Ok(posts);
         }
 
         [HttpPost("approve-post")]
         public async Task<IActionResult> ApprovePost(int id, string type, int newStatus)
         {
-            if (type == "Recipe")
+            try
             {
-                var recipe = await _context.Recipes.FindAsync(id);
-                if (recipe == null) return NotFound();
-                recipe.Status = (PostStatus)newStatus;
+                await _adminService.ApprovePostAsync(id, type, newStatus);
+                return Ok(new { message = "Cập nhật trạng thái thành công!" });
             }
-            else
+            catch (KeyNotFoundException)
             {
-                var tip = await _context.Tips.FindAsync(id);
-                if (tip == null) return NotFound();
-                tip.Status = (PostStatus)newStatus;
+                return NotFound();
             }
-
-            await _context.SaveChangesAsync();
-            return Ok(new { message = "Cập nhật trạng thái thành công!" });
         }
+
         [HttpPost("categories")]
         public async Task<IActionResult> CreateCategory([FromBody] CategoryTreeDto dto)
         {
-            var category = new Category
-            {
-                Name = dto.Name,
-                Type = dto.Type ?? "Recipe", 
-                ParentId = dto.ParentId == 0 ? null : dto.ParentId 
-            };
-
-            _context.Categories.Add(category);
-            await _context.SaveChangesAsync();
-            return Ok(category);
+            var result = await _adminService.CreateCategoryAsync(dto);
+            return Ok(result);
         }
 
         // [PUT] api/Admin/categories/{id}
         [HttpPut("categories/{id}")]
         public async Task<IActionResult> UpdateCategory(int id, [FromBody] CategoryTreeDto dto)
         {
-            var existing = await _context.Categories.FindAsync(id);
-            if (existing == null) return NotFound();
-
-            existing.Name = dto.Name;
-            existing.Type = dto.Type ?? "Recipe";
-            existing.ParentId = dto.ParentId == 0 ? null : dto.ParentId;
-
-            await _context.SaveChangesAsync();
-            return Ok(existing);
+            try
+            {
+                var result = await _adminService.UpdateCategoryAsync(id, dto);
+                return Ok(result);
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound();
+            }
         }
     }
 }

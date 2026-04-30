@@ -1,4 +1,4 @@
-﻿using DoAn_API.DTOs;
+﻿﻿using DoAn_API.DTOs;
 using DoAn_API.Entities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -68,6 +68,12 @@ namespace DoAn_API.Controllers
 
             if (user != null && await _userManager.CheckPasswordAsync(user, model.Password))
             {
+                // Kiểm tra xem người dùng có đang bị khóa tài khoản (Ban) hay không
+                if (await _userManager.IsLockedOutAsync(user))
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "Tài khoản của bạn đã bị khóa do vi phạm chính sách của hệ thống!" });
+                }
+
                 var userRoles = await _userManager.GetRolesAsync(user);
 
                 var authClaims = new List<Claim>
@@ -105,4 +111,3 @@ namespace DoAn_API.Controllers
         }
     }
 }
-

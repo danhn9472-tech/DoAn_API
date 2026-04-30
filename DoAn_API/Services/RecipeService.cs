@@ -101,23 +101,6 @@ namespace DoAn_API.Services
             };
         }
 
-        public async Task<IEnumerable<PendingPostDto>> GetPendingRecipesAsync()
-        {
-            return await _context.Recipes
-                .Where(r => r.Status == PostStatus.Pending)
-                .Include(r => r.User)
-                .OrderBy(r => r.Id)
-                .Select(r => new PendingPostDto
-                {
-                    Id = r.Id,
-                    Title = r.Title,
-                    AuthorName = r.User != null ? (r.User.FullName ?? r.User.UserName) : "Ẩn danh",
-                    CreatedAt = r.CreatedAt,
-                    Type = "Recipe",
-                    ImageUrl = r.ImageUrl
-                }).ToListAsync();
-        }
-
         public async Task<int> CreateRecipeAsync(RecipeDTOs.CreateRecipeRequestDto dto, string userId)
         {
             using var transaction = await _context.Database.BeginTransactionAsync();
@@ -219,15 +202,6 @@ namespace DoAn_API.Services
             if (recipe.Comments != null && recipe.Comments.Any()) _context.Comments.RemoveRange(recipe.Comments);
 
             _context.Recipes.Remove(recipe);
-            await _context.SaveChangesAsync();
-        }
-
-        public async Task ChangeStatusAsync(int id, PostStatus newStatus)
-        {
-            var recipe = await _context.Recipes.FindAsync(id);
-            if (recipe == null) throw new KeyNotFoundException("Không tìm thấy công thức.");
-
-            recipe.Status = newStatus;
             await _context.SaveChangesAsync();
         }
 

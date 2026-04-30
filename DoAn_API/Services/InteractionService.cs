@@ -178,5 +178,27 @@ namespace DoAn_API.Services
             _context.CommentReports.Add(report);
             await _context.SaveChangesAsync();
         }
+
+        public async Task ReportPostAsync(string itemType, int itemId, string reason, string userId)
+        {
+            int? recipeId = itemType == "recipe" ? itemId : null;
+            int? tipId = itemType == "tip" ? itemId : null;
+
+            if (recipeId.HasValue && !await _context.Recipes.AnyAsync(r => r.Id == recipeId))
+                throw new KeyNotFoundException("Công thức không tồn tại.");
+            if (tipId.HasValue && !await _context.Tips.AnyAsync(t => t.Id == tipId))
+                throw new KeyNotFoundException("Mẹo vặt không tồn tại.");
+
+            var existingReport = await _context.PostReports
+                .FirstOrDefaultAsync(r => r.UserId == userId && r.RecipeId == recipeId && r.TipId == tipId);
+
+            if (existingReport != null)
+                throw new InvalidOperationException("Bạn đã báo cáo bài viết này rồi.");
+
+            var report = new PostReport { UserId = userId, Reason = reason, RecipeId = recipeId, TipId = tipId };
+
+            _context.PostReports.Add(report);
+            await _context.SaveChangesAsync();
+        }
     }
 }

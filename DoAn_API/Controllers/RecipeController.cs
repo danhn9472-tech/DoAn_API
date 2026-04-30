@@ -127,34 +127,6 @@ namespace DoAn_API.Controllers
             return Ok(recipes);
         }
 
-        //-------LẤY RA NHỮNG CÔNG THỨC ĐANG CHỜ DUYỆT (DÀNH CHO ADMIN)--------
-        [Authorize(Roles = "Admin")]
-        [HttpGet("pending")]
-        public async Task<ActionResult<IEnumerable<Recipe>>> GetPendingRecipes()
-        {
-            var pendingRecipes = await _recipeService.GetPendingRecipesAsync();
-            return Ok(pendingRecipes);
-        }
-
-        //-------THAY ĐỔI TRẠNG THÁI CÔNG THỨC (DUYỆT/ TỪ CHỐI) DÀNH CHO ADMIN--------
-        [Authorize(Roles = "Admin")]
-        [HttpPut("{id}/change-status")]
-        public async Task<IActionResult> ChangeRecipeStatus(int id, [FromBody] PostStatus newStatus)
-        {
-            try
-            {
-                await _recipeService.ChangeStatusAsync(id, newStatus);
-                return Ok(new { message = "Đã cập nhật trạng thái bài viết." });
-            }
-            catch (KeyNotFoundException ex)
-            {
-                return NotFound(new { message = ex.Message });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, "Lỗi máy chủ: " + ex.Message);
-            }
-        }
         //-------LẤY RA NHỮNG CÔNG THỨC ĐÃ DUYỆT THEO DANH MỤC (DANH MỤC ĐƯỢC TRUYỀN VÀO DƯỚI DẠNG LIST ID)--------
         [HttpGet("filter-by-categories")]
         public async Task<IActionResult> FilterByCategories([FromQuery] List<int> categoryIds)

@@ -69,6 +69,26 @@ namespace DoAn_API.Services
             };
         }
 
+        public async Task<List<TopTipDto>> GetTopTipsAsync(int count)
+        {
+            return await _context.Tips
+                .Where(t => t.Status == PostStatus.Approved)
+                .Include(t => t.User)
+                .OrderByDescending(t => t.CreatedAt)
+                .Take(count)
+                .Select(t => new TopTipDto
+                {
+                    Id = t.Id,
+                    Title = t.Title,
+                    Content = t.Content,
+                    ImageUrl = t.ImageUrl,
+                    CreatedAt = t.CreatedAt,
+                    VoteCount = t.VoteCount,
+                    AuthorName = t.User != null ? (t.User.FullName ?? t.User.UserName) : "Đầu bếp gia đình"
+                })
+                .ToListAsync();
+        }
+
         public async Task<int> CreateTipAsync(TipDTOs.CreateTipDto dto, string userId)
         {
             var tip = new Tip

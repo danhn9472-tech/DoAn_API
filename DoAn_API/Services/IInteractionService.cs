@@ -11,5 +11,6 @@ namespace DoAn_API.Services
         Task<IEnumerable<CommentResponseDto>> GetCommentsAsync(int itemId);
         Task<ToggleResultDto> ToggleSaveAsync(string itemType, int itemId, string userId);
         Task ReportCommentAsync(int commentId, string reason, string userId);
+        Task ReportPostAsync(string itemType, int itemId, string reason, string userId);
     }
 }
