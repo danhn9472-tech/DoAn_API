@@ -3,6 +3,7 @@ using DoAn_API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using System.Collections.Generic;
 using DoAn_API.Entities;
 
 namespace DoAn_API.Controllers
@@ -33,6 +34,21 @@ namespace DoAn_API.Controllers
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var result = await _userActivityService.GetMyPostsAsync(userId);
             return Ok(result);
+        }
+
+        [AllowAnonymous]
+        [HttpGet("profile/{userId}")]
+        public async Task<IActionResult> GetUserProfile(string userId)
+        {
+            try
+            {
+                var result = await _userActivityService.GetUserProfileAsync(userId);
+                return Ok(result);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
         }
     }
 }

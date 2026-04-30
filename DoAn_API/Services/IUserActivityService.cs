@@ -7,5 +7,6 @@ namespace DoAn_API.Services
     {
         Task<SavedItemsDto> GetMyRecipeBookAsync(string userId);
         Task<MyPostsDto> GetMyPostsAsync(string userId);
+        Task<UserProfileDetailDto> GetUserProfileAsync(string userId);
     }
 }

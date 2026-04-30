@@ -1,6 +1,7 @@
 ﻿using DoAn_API.Data;
 using DoAn_API.DTOs;
 using Microsoft.EntityFrameworkCore;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -68,6 +69,37 @@ namespace DoAn_API.Services
                 }).ToListAsync();
 
             return new MyPostsDto { Recipes = recipes, Tips = tips };
+        }
+
+        public async Task<UserProfileDetailDto> GetUserProfileAsync(string userId)
+        {
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null) throw new KeyNotFoundException("Không tìm thấy người dùng.");
+
+            var recipes = await _context.Recipes
+                .Where(r => r.UserId == userId && r.Status == Entities.Enums.PostStatus.Approved)
+                .Select(r => new MyRecipeItemDto
+                {
+                    Id = r.Id, Title = r.Title, Description = r.Description, ImageUrl = r.ImageUrl,
+                    CookTime = r.CookTime, TotalCalories = r.TotalCalories, Status = (int)r.Status,
+                    CreatedAt = r.CreatedAt, VoteCount = r.VoteCount, SaveCount = r.SaveCount
+                }).ToListAsync();
+
+            var tips = await _context.Tips
+                .Where(t => t.UserId == userId && t.Status == Entities.Enums.PostStatus.Approved)
+                .Select(t => new MyTipItemDto
+                {
+                    Id = t.Id, Title = t.Title, Content = t.Content, ImageUrl = t.ImageUrl,
+                    Status = (int)t.Status, CreatedAt = t.CreatedAt, VoteCount = t.VoteCount,
+                    SaveCount = t.SaveCount
+                }).ToListAsync();
+
+            return new UserProfileDetailDto
+            {
+                Id = user.Id, Username = user.UserName, FullName = user.FullName ?? user.UserName,
+                Email = user.Email, TotalRecipes = recipes.Count, TotalTips = tips.Count,
+                Recipes = recipes, Tips = tips
+            };
         }
     }
 }

@@ -6,6 +6,18 @@
         public List<MyTipItemDto> Tips { get; set; } = new();
     }
 
+    public class UserProfileDetailDto
+    {
+        public string Id { get; set; }
+        public string Username { get; set; }
+        public string FullName { get; set; }
+        public string Email { get; set; }
+        public int TotalRecipes { get; set; }
+        public int TotalTips { get; set; }
+        public List<MyRecipeItemDto> Recipes { get; set; } = new();
+        public List<MyTipItemDto> Tips { get; set; } = new();
+    }
+
     public class MyRecipeItemDto
     {
         public int Id { get; set; }
