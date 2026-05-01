@@ -8,6 +8,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using static DoAn_API.DTOs.AuthDTOs;
+using DoAn_API.Services;
 
 namespace DoAn_API.Controllers
 {
@@ -18,15 +19,18 @@ namespace DoAn_API.Controllers
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly RoleManager<IdentityRole> _roleManager;
         private readonly IConfiguration _configuration;
+        private readonly IUploadService _uploadService;
 
         public AccountController(
             UserManager<ApplicationUser> userManager,
             RoleManager<IdentityRole> roleManager,
-            IConfiguration configuration)
+            IConfiguration configuration,
+            IUploadService uploadService)
         {
             _userManager = userManager;
             _roleManager = roleManager;
             _configuration = configuration;
+            _uploadService = uploadService;
         }
 
         // 1. ĐĂNG KÝ TÀI KHOẢN
@@ -105,6 +109,7 @@ namespace DoAn_API.Controllers
                     expiration = token.ValidTo,
                     username = user.UserName,
                     fullName = user.FullName,
+                    avatarUrl = user.AvatarUrl,
                     roles = userRoles
                 });
             }
@@ -141,8 +146,15 @@ namespace DoAn_API.Controllers
             var user = await _userManager.FindByIdAsync(userId);
             if (user == null) return NotFound(new { message = "Không tìm thấy tài khoản." });
 
+            // Kiểm tra: Nếu user có ảnh cũ và ảnh mới được gửi lên khác với ảnh cũ -> Xóa ảnh cũ
+            if (!string.IsNullOrEmpty(user.AvatarUrl) && user.AvatarUrl != model.AvatarUrl)
+            {
+                _uploadService.DeleteImage(user.AvatarUrl);
+            }
+
             user.FullName = model.FullName;
             user.Email = model.Email;
+            user.AvatarUrl = model.AvatarUrl;
 
             var result = await _userManager.UpdateAsync(user);
             
@@ -168,7 +180,8 @@ namespace DoAn_API.Controllers
                 Id = user.Id,
                 Username = user.UserName,
                 Email = user.Email,
-                FullName = user.FullName
+                FullName = user.FullName,
+                AvatarUrl = user.AvatarUrl
             });
         }
     }

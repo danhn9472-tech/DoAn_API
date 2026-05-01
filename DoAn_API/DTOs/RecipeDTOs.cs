@@ -1,4 +1,4 @@
-﻿﻿﻿﻿namespace DoAn_API.DTOs
+﻿﻿﻿﻿﻿﻿namespace DoAn_API.DTOs
 {
     public class RecipeDTOs
     {
@@ -53,6 +53,7 @@
             public string UserId { get; set; }
             public DoAn_API.Entities.Enums.PostStatus Status { get; set; }
             public string? AuthorName { get; set; }
+            public string? AuthorAvatarUrl { get; set; }
             public List<CategoryDto> Categories { get; set; }
         }
 
@@ -75,6 +76,7 @@
             public double TotalCarbs { get; set; }
             public DoAn_API.Entities.Enums.DifficultyLevel Difficulty { get; set; }
             public string? AuthorName { get; set; }
+            public string? AuthorAvatarUrl { get; set; }
             public string UserId { get; set; }
             public DateTime CreatedAt { get; set; }
             public int VoteCount { get; set; }

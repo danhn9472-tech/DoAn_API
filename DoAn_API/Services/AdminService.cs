@@ -39,6 +39,7 @@ namespace DoAn_API.Services
                     Reason = r.Reason,
                     CommentContent = r.Comment.Content,
                     CommentAuthor = r.Comment.User.UserName,
+                    CommentAuthorAvatarUrl = r.Comment.User.AvatarUrl,
                     AuthorId = r.Comment.UserId,
                     ReportedAt = r.CreatedAt
                 })
@@ -88,6 +89,7 @@ namespace DoAn_API.Services
                     PostTitle = r.RecipeId != null ? r.Recipe.Title : r.Tip.Title,
                     PostType = r.RecipeId != null ? "Recipe" : "Tip",
                     PostAuthor = r.RecipeId != null ? r.Recipe.User.UserName : r.Tip.User.UserName,
+                    PostAuthorAvatarUrl = r.RecipeId != null ? r.Recipe.User.AvatarUrl : r.Tip.User.AvatarUrl,
                     AuthorId = r.RecipeId != null ? r.Recipe.UserId : r.Tip.UserId,
                     ReportedAt = r.CreatedAt,
                     RecipeId = r.RecipeId,
@@ -171,6 +173,7 @@ namespace DoAn_API.Services
                     UserName = user.UserName,
                     Email = user.Email,
                     FullName = user.FullName,
+                    AvatarUrl = user.AvatarUrl,
                     IsLockedOut = await _userManager.IsLockedOutAsync(user),
                     LockoutEnd = user.LockoutEnd,
                     Roles = await _userManager.GetRolesAsync(user)
@@ -206,7 +209,8 @@ namespace DoAn_API.Services
                     AuthorName = r.User != null ? (r.User.FullName ?? r.User.UserName) : "Ẩn danh",
                     CreatedAt = r.CreatedAt,
                     Type = "Recipe",
-                    ImageUrl = r.ImageUrl
+                    ImageUrl = r.ImageUrl,
+                    AuthorAvatarUrl = r.User !=null ? r.User.AvatarUrl : null
                 }).ToListAsync();
 
             var tips = await _context.Tips
@@ -218,7 +222,8 @@ namespace DoAn_API.Services
                     AuthorName = t.User != null ? (t.User.FullName ?? t.User.UserName) : "Ẩn danh",
                     CreatedAt = t.CreatedAt,
                     Type = "Tip",
-                    ImageUrl = t.ImageUrl
+                    ImageUrl = t.ImageUrl,
+                    AuthorAvatarUrl = t.User != null ? t.User.AvatarUrl : null
                 }).ToListAsync();
 
             return recipes.Concat(tips).OrderByDescending(p => p.CreatedAt);

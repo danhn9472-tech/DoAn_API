@@ -1,4 +1,4 @@
-﻿﻿namespace DoAn_API.DTOs
+﻿﻿﻿﻿namespace DoAn_API.DTOs
 {
     public class PendingPostDto
     {
@@ -6,7 +6,8 @@
         public string Title { get; set; }
         public string? AuthorName { get; set; }
         public DateTime CreatedAt { get; set; }
-        public string Type { get; set; } 
+        public string Type { get; set; }
         public string? ImageUrl { get; set; }
+        public string? AuthorAvatarUrl { get; set; }
     }
 }

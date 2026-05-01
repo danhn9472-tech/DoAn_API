@@ -1,4 +1,4 @@
-﻿using DoAn_API.Data;
+﻿﻿using DoAn_API.Data;
 using DoAn_API.DTOs;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
@@ -29,7 +29,8 @@ namespace DoAn_API.Services
                     ImageUrl = r.ImageUrl,
                     CookTime = r.CookTime,
                     TotalCalories = r.TotalCalories,
-                    AuthorName = r.User != null ? (r.User.FullName ?? r.User.UserName) : "Ẩn danh"
+                    AuthorName = r.User != null ? (r.User.FullName ?? r.User.UserName) : "Ẩn danh",
+                    AuthorAvatarUrl = r.User != null ? r.User.AvatarUrl : null
                 })
                 .ToListAsync();
 
@@ -41,6 +42,7 @@ namespace DoAn_API.Services
                     Title = t.Title,
                     ImageUrl = t.ImageUrl,
                     AuthorName = t.User != null ? (t.User.FullName ?? t.User.UserName) : "Ẩn danh",
+                    AuthorAvatarUrl = t.User != null ? t.User.AvatarUrl : null,
                     CreatedAt = t.CreatedAt
                 })
                 .ToListAsync();
@@ -96,7 +98,7 @@ namespace DoAn_API.Services
 
             return new UserProfileDetailDto
             {
-                Id = user.Id, Username = user.UserName, FullName = user.FullName ?? user.UserName,
+                Id = user.Id, Username = user.UserName, FullName = user.FullName ?? user.UserName, AvatarUrl = user.AvatarUrl,
                 Email = user.Email, TotalRecipes = recipes.Count, TotalTips = tips.Count,
                 Recipes = recipes, Tips = tips
             };

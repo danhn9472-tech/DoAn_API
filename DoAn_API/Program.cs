@@ -101,6 +101,7 @@ builder.Services.AddScoped<IInteractionService, InteractionService>();
 builder.Services.AddScoped<IUserActivityService, UserActivityService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<IUploadService, UploadService>();
 
 var app = builder.Build();
 

@@ -4,6 +4,7 @@ namespace DoAn_API.Entities
     public class ApplicationUser: IdentityUser
     {
         public string? FullName { get; set; }
+        public string? AvatarUrl { get; set; }
         public virtual ICollection<Post> Posts { get; set; }
     }
 }

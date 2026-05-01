@@ -14,11 +14,13 @@ namespace DoAn_API.Services
     {
         private readonly ApplicationDbContext _context;
         private readonly NutritionService _nutritionService;
+        private readonly IUploadService _uploadService;
 
-        public RecipeService(ApplicationDbContext context, NutritionService nutritionService)
+        public RecipeService(ApplicationDbContext context, NutritionService nutritionService, IUploadService uploadService)
         {
             _context = context;
             _nutritionService = nutritionService;
+            _uploadService = uploadService;
         }
 
         public async Task<RecipeDTOs.PaginatedRecipeResponseDto> GetRecipesAsync(int page, int pageSize)
@@ -49,6 +51,7 @@ namespace DoAn_API.Services
                     UserId = r.UserId,
                     Status = r.Status,
                     AuthorName = r.User != null ? (r.User.FullName ?? r.User.UserName) : "Đầu bếp gia đình",
+                    AuthorAvatarUrl = r.User != null ? r.User.AvatarUrl : null,
                     Categories = r.RecipeCategories.Select(rc => new RecipeDTOs.CategoryDto
                     {
                         Id = rc.Category.Id,
@@ -91,6 +94,7 @@ namespace DoAn_API.Services
                 TotalCarbs = recipe.TotalCarbs,
                 Difficulty = recipe.Difficulty,
                 AuthorName = recipe.User != null ? (recipe.User.FullName ?? recipe.User.UserName) : "Đầu bếp gia đình",
+                AuthorAvatarUrl = recipe.User != null ? recipe.User.AvatarUrl : null,
                 UserId = recipe.UserId,
                 CreatedAt = recipe.CreatedAt,
                 VoteCount = recipe.VoteCount,
@@ -159,7 +163,27 @@ namespace DoAn_API.Services
             recipe.Description = dto.Description;
             recipe.CookTime = dto.CookTime;
             recipe.Difficulty = (DifficultyLevel)dto.Difficulty;
-            if (!string.IsNullOrEmpty(dto.ImageUrl)) recipe.ImageUrl = dto.ImageUrl;
+            
+            // Kiểm tra: Nếu có ảnh mới gửi lên và khác với ảnh hiện tại -> Xóa ảnh cũ
+            if (!string.IsNullOrEmpty(dto.ImageUrl) && recipe.ImageUrl != dto.ImageUrl)
+            {
+                if (!string.IsNullOrEmpty(recipe.ImageUrl))
+                {
+                    _uploadService.DeleteImage(recipe.ImageUrl);
+                }
+                recipe.ImageUrl = dto.ImageUrl;
+            }
+
+            // Lấy danh sách các ảnh bước thực hiện MỚI được gửi lên
+            var newStepImages = dto.Steps.Where(s => !string.IsNullOrEmpty(s.ImageUrl)).Select(s => s.ImageUrl).ToList();
+            // So sánh để xóa các ảnh bước thực hiện CŨ không còn sử dụng nữa
+            foreach (var oldStep in recipe.RecipeSteps)
+            {
+                if (!string.IsNullOrEmpty(oldStep.ImageUrl) && !newStepImages.Contains(oldStep.ImageUrl))
+                {
+                    _uploadService.DeleteImage(oldStep.ImageUrl);
+                }
+            }
 
             _context.RecipeIngredients.RemoveRange(recipe.RecipeIngredients);
             _context.RecipeSteps.RemoveRange(recipe.RecipeSteps);
@@ -193,13 +217,31 @@ namespace DoAn_API.Services
 
         public async Task DeleteRecipeAsync(int id, string userId, bool isAdmin)
         {
-            var recipe = await _context.Recipes.Include(r => r.Comments).FirstOrDefaultAsync(r => r.Id == id);
+            var recipe = await _context.Recipes
+                .Include(r => r.Comments)
+                .Include(r => r.RecipeSteps) // Cần Include RecipeSteps để có thể đọc được dữ liệu ảnh
+                .FirstOrDefaultAsync(r => r.Id == id);
             if (recipe == null) throw new KeyNotFoundException("Không tìm thấy công thức.");
             if (recipe.UserId != userId && !isAdmin) throw new UnauthorizedAccessException("Bạn không có quyền xóa công thức này.");
 
             var activities = _context.UserActivities.Where(ua => ua.PostId == id);
             _context.UserActivities.RemoveRange(activities);
             if (recipe.Comments != null && recipe.Comments.Any()) _context.Comments.RemoveRange(recipe.Comments);
+
+            // Xóa ảnh bìa của công thức khỏi thư mục vật lý (wwwroot/images)
+            if (!string.IsNullOrEmpty(recipe.ImageUrl))
+            {
+                _uploadService.DeleteImage(recipe.ImageUrl);
+            }
+
+            // Lặp qua và xóa toàn bộ ảnh trong các bước thực hiện
+            foreach (var step in recipe.RecipeSteps)
+            {
+                if (!string.IsNullOrEmpty(step.ImageUrl))
+                {
+                    _uploadService.DeleteImage(step.ImageUrl);
+                }
+            }
 
             _context.Recipes.Remove(recipe);
             await _context.SaveChangesAsync();

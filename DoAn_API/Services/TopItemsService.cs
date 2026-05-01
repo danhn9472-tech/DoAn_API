@@ -36,7 +36,8 @@ namespace DoAn_API.Services
                     CookTime = r.CookTime,
                     TotalCalories = r.TotalCalories,
                     VoteCount = r.VoteCount,
-                    AuthorName = r.User != null ? (r.User.FullName ?? r.User.UserName) : "Đầu bếp gia đình"
+                    AuthorName = r.User != null ? (r.User.FullName ?? r.User.UserName) : "Đầu bếp gia đình",
+                    AuthorAvatarUrl = r.User != null ? r.User.AvatarUrl : null
                 })
                 .ToListAsync();
         }
@@ -56,7 +57,8 @@ namespace DoAn_API.Services
                     ImageUrl = t.ImageUrl,
                     CreatedAt = t.CreatedAt,
                     VoteCount = t.VoteCount,
-                    AuthorName = t.User != null ? t.User.FullName : "Đầu bếp gia đình"
+                    AuthorName = t.User != null ? (t.User.FullName ?? t.User.UserName) : "Đầu bếp gia đình",
+                    AuthorAvatarUrl = t.User != null ? t.User.AvatarUrl : null
                 })
                 .ToListAsync();
         }

@@ -1,4 +1,4 @@
-﻿﻿namespace DoAn_API.DTOs
+﻿﻿﻿﻿namespace DoAn_API.DTOs
 {
     public class AuthDTOs
     {
@@ -26,6 +26,7 @@
         {
             public string FullName { get; set; }
             public string Email { get; set; }
+            public string? AvatarUrl { get; set; }
         }
 
         public class UserProfileDto
@@ -34,6 +35,7 @@
             public string Username { get; set; }
             public string Email { get; set; }
             public string FullName { get; set; }
+            public string? AvatarUrl { get; set; }
         }
 
         public class AuthResponseDto
@@ -41,6 +43,7 @@
             public string Token { get; set; }
             public string Username { get; set; }
             public List<string> Roles { get; set; }
+            public string? AvatarUrl { get; set; }
             public DateTime Expiration { get; set; }
         }
     }

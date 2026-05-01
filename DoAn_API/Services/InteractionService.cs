@@ -126,7 +126,8 @@ namespace DoAn_API.Services
                     Id = c.Id,
                     Content = c.Content,
                     CreatedAt = c.CreatedAt,
-                    AuthorName = c.User != null ? (c.User.FullName ?? c.User.UserName) : "Thành viên NutriCook"
+                    AuthorName = c.User != null ? (c.User.FullName ?? c.User.UserName) : "Thành viên NutriCook",
+                    AuthorAvatarUrl = c.User != null ? c.User.AvatarUrl : null
                 })
                 .ToListAsync();
         }

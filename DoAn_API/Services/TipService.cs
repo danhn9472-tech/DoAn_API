@@ -13,10 +13,12 @@ namespace DoAn_API.Services
     public class TipService : ITipService
     {
         private readonly ApplicationDbContext _context;
+        private readonly IUploadService _uploadService;
 
-        public TipService(ApplicationDbContext context)
+        public TipService(ApplicationDbContext context, IUploadService uploadService)
         {
             _context = context;
+            _uploadService = uploadService;
         }
 
         public async Task<TipDTOs.PaginatedTipResponseDto> GetTipsAsync(int page, int pageSize)
@@ -41,7 +43,8 @@ namespace DoAn_API.Services
                     SaveCount = t.SaveCount,
                     UserId = t.UserId,
                     Status = t.Status,
-                    AuthorName = t.User != null ? (t.User.FullName ?? t.User.UserName) : "Đầu bếp gia đình"
+                    AuthorName = t.User != null ? (t.User.FullName ?? t.User.UserName) : "Đầu bếp gia đình",
+                    AuthorAvatarUrl = t.User != null ? t.User.AvatarUrl : null
                 })
                 .ToListAsync();
 
@@ -65,7 +68,8 @@ namespace DoAn_API.Services
                 Id = tip.Id, Title = tip.Title, Content = tip.Content, ImageUrl = tip.ImageUrl,
                 CreatedAt = tip.CreatedAt, VoteCount = tip.VoteCount, SaveCount = tip.SaveCount,
                 UserId = tip.UserId, Status = tip.Status,
-                AuthorName = tip.User != null ? (tip.User.FullName ?? tip.User.UserName) : "Đầu bếp gia đình"
+                AuthorName = tip.User != null ? (tip.User.FullName ?? tip.User.UserName) : "Đầu bếp gia đình",
+                AuthorAvatarUrl = tip.User != null ? tip.User.AvatarUrl : null
             };
         }
 
@@ -84,7 +88,8 @@ namespace DoAn_API.Services
                     ImageUrl = t.ImageUrl,
                     CreatedAt = t.CreatedAt,
                     VoteCount = t.VoteCount,
-                    AuthorName = t.User != null ? (t.User.FullName ?? t.User.UserName) : "Đầu bếp gia đình"
+                    AuthorName = t.User != null ? (t.User.FullName ?? t.User.UserName) : "Đầu bếp gia đình",
+                    AuthorAvatarUrl = t.User != null ? t.User.AvatarUrl : null
                 })
                 .ToListAsync();
         }
@@ -114,7 +119,16 @@ namespace DoAn_API.Services
 
             tip.Title = dto.Title;
             tip.Content = dto.Content;
-            tip.ImageUrl = dto.ImageUrl;
+            
+            // Kiểm tra: Nếu đường dẫn ảnh bị thay đổi -> Xóa ảnh cũ khỏi máy chủ
+            if (tip.ImageUrl != dto.ImageUrl)
+            {
+                if (!string.IsNullOrEmpty(tip.ImageUrl))
+                {
+                    _uploadService.DeleteImage(tip.ImageUrl);
+                }
+                tip.ImageUrl = dto.ImageUrl;
+            }
 
             await _context.SaveChangesAsync();
         }
@@ -131,6 +145,12 @@ namespace DoAn_API.Services
             if (tip.Comments != null && tip.Comments.Any())
             {
                 _context.Comments.RemoveRange(tip.Comments);
+            }
+
+            // Xóa ảnh bìa của mẹo vặt khỏi máy chủ trước khi xóa bản ghi
+            if (!string.IsNullOrEmpty(tip.ImageUrl))
+            {
+                _uploadService.DeleteImage(tip.ImageUrl);
             }
 
             _context.Tips.Remove(tip);

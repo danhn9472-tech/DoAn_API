@@ -1,4 +1,4 @@
-﻿﻿﻿﻿namespace DoAn_API.DTOs
+﻿﻿﻿﻿﻿﻿namespace DoAn_API.DTOs
 {
     public class TipDTOs
     {
@@ -21,6 +21,7 @@
             public string UserId { get; set; }
             public DoAn_API.Entities.Enums.PostStatus Status { get; set; }
             public string? AuthorName { get; set; }
+            public string? AuthorAvatarUrl { get; set; }
         }
 
         public class PaginatedTipResponseDto

@@ -10,6 +10,7 @@ namespace DoAn_API.DTOs
         public double TotalCalories { get; set; }
         public int VoteCount { get; set; }
         public string? AuthorName { get; set; }
+        public string? AuthorAvatarUrl { get; set; }
     }
 
     public class TopTipDto
@@ -21,5 +22,6 @@ namespace DoAn_API.DTOs
         public DateTime CreatedAt { get; set; }
         public int VoteCount { get; set; }
         public string? AuthorName { get; set; }
+        public string? AuthorAvatarUrl { get; set; }
     }
 }

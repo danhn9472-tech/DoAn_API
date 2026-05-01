@@ -1,4 +1,4 @@
-﻿﻿namespace DoAn_API.DTOs
+﻿﻿﻿﻿namespace DoAn_API.DTOs
 {
     public class MyPostsDto
     {
@@ -11,6 +11,7 @@
         public string Id { get; set; }
         public string Username { get; set; }
         public string FullName { get; set; }
+        public string? AvatarUrl { get; set; }
         public string Email { get; set; }
         public int TotalRecipes { get; set; }
         public int TotalTips { get; set; }
