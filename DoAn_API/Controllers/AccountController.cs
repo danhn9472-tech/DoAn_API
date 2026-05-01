@@ -103,14 +103,14 @@ namespace DoAn_API.Controllers
                     signingCredentials: new SigningCredentials(authSigningKey, SecurityAlgorithms.HmacSha256)
                 );
 
-                return Ok(new
+                return Ok(new AuthDTOs.AuthResponseDto
                 {
-                    token = new JwtSecurityTokenHandler().WriteToken(token),
-                    expiration = token.ValidTo,
-                    username = user.UserName,
-                    fullName = user.FullName,
-                    avatarUrl = user.AvatarUrl,
-                    roles = userRoles
+                    Token = new JwtSecurityTokenHandler().WriteToken(token),
+                    Expiration = token.ValidTo,
+                    Username = user.UserName,
+                    FullName = user.FullName,
+                    AvatarUrl = user.AvatarUrl,
+                    Roles = userRoles
                 });
             }
             return Unauthorized(new { message = "Sai tên đăng nhập hoặc mật khẩu!" });
