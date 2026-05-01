@@ -1,9 +1,10 @@
-﻿using DoAn_API.Data;
+﻿﻿using DoAn_API.Data;
 using DoAn_API.DTOs;
 using DoAn_API.Entities;
 using DoAn_API.Entities.Enums;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -14,11 +15,15 @@ namespace DoAn_API.Services
     {
         private readonly ApplicationDbContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly IMemoryCache _cache;
+        private readonly INotificationService _notificationService;
 
-        public AdminService(ApplicationDbContext context, UserManager<ApplicationUser> userManager)
+        public AdminService(ApplicationDbContext context, UserManager<ApplicationUser> userManager, IMemoryCache cache, INotificationService notificationService)
         {
             _context = context;
             _userManager = userManager;
+            _cache = cache;
+            _notificationService = notificationService;
         }
 
         public async Task<IEnumerable<AdminDTOs.PendingReportDto>> GetPendingCommentReportsAsync()
@@ -226,12 +231,22 @@ namespace DoAn_API.Services
                 var recipe = await _context.Recipes.FindAsync(id);
                 if (recipe == null) throw new KeyNotFoundException("Không tìm thấy công thức.");
                 recipe.Status = (PostStatus)newStatus;
+
+                if ((PostStatus)newStatus == PostStatus.Approved)
+                {
+                    await _notificationService.SendNotificationAsync(recipe.UserId, $"Tuyệt vời! Công thức '{recipe.Title}' của bạn đã được duyệt.", "Approval", recipe.Id);
+                }
             }
             else
             {
                 var tip = await _context.Tips.FindAsync(id);
                 if (tip == null) throw new KeyNotFoundException("Không tìm thấy mẹo vặt.");
                 tip.Status = (PostStatus)newStatus;
+
+                if ((PostStatus)newStatus == PostStatus.Approved)
+                {
+                    await _notificationService.SendNotificationAsync(tip.UserId, $"Bài viết '{tip.Title}' của bạn đã được duyệt.", "Approval", tip.Id);
+                }
             }
 
             await _context.SaveChangesAsync();
@@ -249,6 +264,9 @@ namespace DoAn_API.Services
             _context.Categories.Add(category);
             await _context.SaveChangesAsync();
             
+            // Xóa cache cũ để hệ thống tự load lại Cây danh mục mới
+            _cache.Remove("CategoryTree");
+
             dto.Id = category.Id;
             return dto;
         }
@@ -263,6 +281,10 @@ namespace DoAn_API.Services
             existing.ParentId = dto.ParentId == 0 ? null : dto.ParentId;
 
             await _context.SaveChangesAsync();
+            
+            // Xóa cache cũ để hệ thống tự load lại Cây danh mục mới
+            _cache.Remove("CategoryTree");
+
             return dto;
         }
     }

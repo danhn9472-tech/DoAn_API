@@ -20,6 +20,7 @@ namespace DoAn_API.Data
             public DbSet<Category> Categories { get; set; }
             public DbSet<RecipeCategory> RecipeCategories { get; set; }
             public DbSet<PostReport> PostReports { get; set; }
+            public DbSet<Notification> Notifications { get; set; } // Thêm bảng Thông báo
 
         protected override void OnModelCreating(ModelBuilder builder)
         {

@@ -1,7 +1,8 @@
-﻿using DoAn_API.Data;
+﻿﻿using DoAn_API.Data;
 using DoAn_API.DTOs;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using static DoAn_API.DTOs.CategoryDTOs;
 
 namespace DoAn_API.Controllers
@@ -11,11 +12,23 @@ namespace DoAn_API.Controllers
     public class CategoriesController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
-        public CategoriesController(ApplicationDbContext context) => _context = context;
+        private readonly IMemoryCache _cache;
+
+        public CategoriesController(ApplicationDbContext context, IMemoryCache cache)
+        {
+            _context = context;
+            _cache = cache;
+        }
 
         [HttpGet("tree")]
         public async Task<IActionResult> GetCategoryTree()
         {
+            // 1. Kiểm tra xem cây danh mục đã có trong Cache chưa
+            if (_cache.TryGetValue("CategoryTree", out List<CategoryDTOs.CategoryTreeDto> cachedTree))
+            {
+                return Ok(cachedTree); // Trả về luôn từ RAM, bỏ qua mọi logic bên dưới
+            }
+
             var allCategories = await _context.Categories.ToListAsync();
 
             var parentIds = allCategories
@@ -57,6 +70,9 @@ namespace DoAn_API.Controllers
                 })
                 .OrderBy(c => c.Name) 
                 .ToList();
+
+            // 2. Lưu kết quả vào Cache, set thời gian sống là 24 giờ
+            _cache.Set("CategoryTree", categoryTree, TimeSpan.FromHours(24));
 
             return Ok(categoryTree);
         }

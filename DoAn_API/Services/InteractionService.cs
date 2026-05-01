@@ -12,21 +12,30 @@ namespace DoAn_API.Services
     public class InteractionService : IInteractionService
     {
         private readonly ApplicationDbContext _context;
+        private readonly INotificationService _notificationService;
 
-        public InteractionService(ApplicationDbContext context)
+        public InteractionService(ApplicationDbContext context, INotificationService notificationService)
         {
             _context = context;
+            _notificationService = notificationService;
         }
 
         public async Task<ToggleResultDto> ToggleVoteAsync(string itemType, int itemId, string userId)
         {
+            string postOwnerId = null;
+            string postTitle = null;
+
             if (itemType == "recipe")
             {
-                if (!await _context.Recipes.AnyAsync(r => r.Id == itemId)) throw new KeyNotFoundException("Công thức không tồn tại");
+                var recipe = await _context.Recipes.FindAsync(itemId);
+                if (recipe == null) throw new KeyNotFoundException("Công thức không tồn tại");
+                postOwnerId = recipe.UserId; postTitle = recipe.Title;
             }
             else if (itemType == "tip")
             {
-                if (!await _context.Tips.AnyAsync(t => t.Id == itemId)) throw new KeyNotFoundException("Tip không tồn tại");
+                var tip = await _context.Tips.FindAsync(itemId);
+                if (tip == null) throw new KeyNotFoundException("Tip không tồn tại");
+                postOwnerId = tip.UserId; postTitle = tip.Title;
             }
 
             var activity = await _context.UserActivities
@@ -38,6 +47,12 @@ namespace DoAn_API.Services
                 activity = new UserActivity { UserId = userId, PostId = itemId, IsVoted = true };
                 _context.UserActivities.Add(activity);
                 increment = 1;
+                
+                // Gửi thông báo (chỉ gửi nếu người Like KHÔNG PHẢI là tác giả)
+                if (postOwnerId != userId)
+                {
+                    await _notificationService.SendNotificationAsync(postOwnerId, $"Có người vừa thích bài viết '{postTitle}' của bạn.", "Vote", itemId);
+                }
             }
             else
             {
@@ -83,6 +98,14 @@ namespace DoAn_API.Services
 
             _context.Comments.Add(comment);
             await _context.SaveChangesAsync();
+
+            // Gửi thông báo (Vì EF Core TPH, bảng Post lưu cả Recipe và Tip, ta tìm thẳng bằng PostId)
+            var post = await _context.Posts.FindAsync(dto.PostId);
+            
+            if (post != null && post.UserId != userId)
+            {
+                await _notificationService.SendNotificationAsync(post.UserId, $"Bài viết '{post.Title}' của bạn vừa có bình luận mới.", "Comment", post.Id);
+            }
 
             return new CommentResponseDto
             {
