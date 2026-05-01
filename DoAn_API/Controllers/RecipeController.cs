@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿using DoAn_API.Data;
+﻿﻿﻿﻿﻿﻿﻿﻿using DoAn_API.Data;
 using DoAn_API.DTOs;
 using DoAn_API.Entities;
 using DoAn_API.Entities.Enums;
@@ -54,15 +54,8 @@ namespace DoAn_API.Controllers
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
-            try
-            {
-                int newRecipeId = await _recipeService.CreateRecipeAsync(dto, userId);
-                return Ok(new { message = "Tạo công thức thành công, hệ thống đã tự động tính toán dinh dưỡng!", recipeId = newRecipeId });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, "Lỗi máy chủ: " + ex.Message);
-            }
+            int newRecipeId = await _recipeService.CreateRecipeAsync(dto, userId);
+            return Ok(new { message = "Tạo công thức thành công, hệ thống đã tự động tính toán dinh dưỡng!", recipeId = newRecipeId });
         }
         //-----SỬA CÔNG THỨC-----
         [HttpPut("{id}")]
@@ -72,23 +65,8 @@ namespace DoAn_API.Controllers
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var isAdmin = User.IsInRole("Admin");
 
-            try
-            {
-                await _recipeService.UpdateRecipeAsync(id, dto, userId, isAdmin);
-                return Ok(new { message = "Cập nhật thành công!", id = id });
-            }
-            catch (KeyNotFoundException ex)
-            {
-                return NotFound(new { message = ex.Message });
-            }
-            catch (UnauthorizedAccessException)
-            {
-                return Forbid();
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, "Lỗi máy chủ: " + ex.Message);
-            }
+            await _recipeService.UpdateRecipeAsync(id, dto, userId, isAdmin);
+            return Ok(new { message = "Cập nhật thành công!", id = id });
         }
 
 
@@ -100,23 +78,8 @@ namespace DoAn_API.Controllers
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var isAdmin = User.IsInRole("Admin");
             
-            try
-            {
-                await _recipeService.DeleteRecipeAsync(id, userId, isAdmin);
-                return Ok(new { message = "Xóa công thức thành công." });
-            }
-            catch (KeyNotFoundException)
-            {
-                return NotFound();
-            }
-            catch (UnauthorizedAccessException)
-            {
-                return Forbid();
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, "Lỗi máy chủ: " + ex.Message);
-            }
+            await _recipeService.DeleteRecipeAsync(id, userId, isAdmin);
+            return Ok(new { message = "Xóa công thức thành công." });
         }
         //-------LẤY RA NHỮNG CÔNG THỨC MỚI NHẤT ĐÃ DUYỆT, SỐ LƯỢNG DO CLIENT YÊU CẦU--------
         [HttpGet("top/{count}")]

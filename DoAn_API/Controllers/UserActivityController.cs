@@ -1,4 +1,4 @@
-﻿using DoAn_API.DTOs;
+﻿﻿using DoAn_API.DTOs;
 using DoAn_API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -40,15 +40,8 @@ namespace DoAn_API.Controllers
         [HttpGet("profile/{userId}")]
         public async Task<IActionResult> GetUserProfile(string userId)
         {
-            try
-            {
-                var result = await _userActivityService.GetUserProfileAsync(userId);
-                return Ok(result);
-            }
-            catch (KeyNotFoundException ex)
-            {
-                return NotFound(new { message = ex.Message });
-            }
+            var result = await _userActivityService.GetUserProfileAsync(userId);
+            return Ok(result);
         }
     }
 }

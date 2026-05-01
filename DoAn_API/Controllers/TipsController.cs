@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿using DoAn_API.Data;
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿using DoAn_API.Data;
 using DoAn_API.DTOs;
 using DoAn_API.Entities;
 using DoAn_API.Entities.Enums;
@@ -58,15 +58,8 @@ namespace DoAn_API.Controllers
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
-            try
-            {
-                int tipId = await _tipService.CreateTipAsync(dto, userId);
-                return Ok(new { message = "Đăng bài viết thành công!", tipId = tipId });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, "Lỗi máy chủ: " + ex.Message);
-            }
+            int tipId = await _tipService.CreateTipAsync(dto, userId);
+            return Ok(new { message = "Đăng bài viết thành công!", tipId = tipId });
         }
 
         //-------CẬP NHẬT BÀI VIẾT THEO ID-------
@@ -77,23 +70,8 @@ namespace DoAn_API.Controllers
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var isAdmin = User.IsInRole("Admin");
 
-            try
-            {
-                await _tipService.UpdateTipAsync(id, dto, userId, isAdmin);
-                return Ok(new { message = "Cập nhật bài viết thành công!", tipId = id });
-            }
-            catch (KeyNotFoundException ex)
-            {
-                return NotFound(new { message = ex.Message });
-            }
-            catch (UnauthorizedAccessException)
-            {
-                return Forbid();
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, "Lỗi máy chủ: " + ex.Message);
-            }
+            await _tipService.UpdateTipAsync(id, dto, userId, isAdmin);
+            return Ok(new { message = "Cập nhật bài viết thành công!", tipId = id });
         }
 
         //-------XÓA BÀI VIẾT THEO ID-------
@@ -104,23 +82,8 @@ namespace DoAn_API.Controllers
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var isAdmin = User.IsInRole("Admin");
 
-            try
-            {
-                await _tipService.DeleteTipAsync(id, userId, isAdmin);
-                return Ok(new { message = "Đã xóa bài viết." });
-            }
-            catch (KeyNotFoundException)
-            {
-                return NotFound();
-            }
-            catch (UnauthorizedAccessException)
-            {
-                return Forbid();
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, "Lỗi máy chủ: " + ex.Message);
-            }
+            await _tipService.DeleteTipAsync(id, userId, isAdmin);
+            return Ok(new { message = "Đã xóa bài viết." });
         }
     }
 }

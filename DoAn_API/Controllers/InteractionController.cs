@@ -1,4 +1,4 @@
-﻿﻿using DoAn_API.DTOs;
+﻿﻿﻿﻿using DoAn_API.DTOs;
 using DoAn_API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -33,15 +33,8 @@ namespace DoAn_API.Controllers
 
             if (string.IsNullOrEmpty(CurrentUserId)) return Unauthorized();
             
-            try
-            {
-                var result = await _interactionService.ToggleVoteAsync(itemType.ToLower(), itemId, CurrentUserId);
-                return Ok(new { count = result.Count, status = result.Status });
-            }
-            catch (KeyNotFoundException ex)
-            {
-                return NotFound(new { message = ex.Message });
-            }
+            var result = await _interactionService.ToggleVoteAsync(itemType.ToLower(), itemId, CurrentUserId);
+            return Ok(new { count = result.Count, status = result.Status });
         }
 
         // -------BÌNH LUẬN-------
@@ -95,15 +88,8 @@ namespace DoAn_API.Controllers
 
             if (string.IsNullOrEmpty(CurrentUserId)) return Unauthorized();
             
-            try
-            {
-                var result = await _interactionService.ToggleSaveAsync(itemType.ToLower(), itemId, CurrentUserId);
-                return Ok(new { count = result.Count, status = result.Status });
-            }
-            catch (KeyNotFoundException ex)
-            {
-                return NotFound(new { message = ex.Message });
-            }
+            var result = await _interactionService.ToggleSaveAsync(itemType.ToLower(), itemId, CurrentUserId);
+            return Ok(new { count = result.Count, status = result.Status });
         }
 
         // GỬI BÁO CÁO BÌNH LUẬN
@@ -113,19 +99,8 @@ namespace DoAn_API.Controllers
         {
             if (string.IsNullOrEmpty(CurrentUserId)) return Unauthorized();
             
-            try
-            {
-                await _interactionService.ReportCommentAsync(commentId, dto.Reason, CurrentUserId);
-                return Ok(new { message = "Cảm ơn bạn đã báo cáo. Chúng tôi sẽ xem xét sớm nhất." });
-            }
-            catch (KeyNotFoundException ex)
-            {
-                return NotFound(new { message = ex.Message });
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+            await _interactionService.ReportCommentAsync(commentId, dto.Reason, CurrentUserId);
+            return Ok(new { message = "Cảm ơn bạn đã báo cáo. Chúng tôi sẽ xem xét sớm nhất." });
         }
 
         // GỬI BÁO CÁO BÀI VIẾT (RECIPE / TIP)
@@ -141,19 +116,8 @@ namespace DoAn_API.Controllers
 
             if (string.IsNullOrEmpty(CurrentUserId)) return Unauthorized();
             
-            try
-            {
-                await _interactionService.ReportPostAsync(itemType.ToLower(), itemId, dto.Reason, CurrentUserId);
-                return Ok(new { message = "Cảm ơn bạn đã báo cáo. Chúng tôi sẽ xem xét sớm nhất." });
-            }
-            catch (KeyNotFoundException ex)
-            {
-                return NotFound(new { message = ex.Message });
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+            await _interactionService.ReportPostAsync(itemType.ToLower(), itemId, dto.Reason, CurrentUserId);
+            return Ok(new { message = "Cảm ơn bạn đã báo cáo. Chúng tôi sẽ xem xét sớm nhất." });
         }
     }
 }

@@ -32,11 +32,25 @@ namespace DoAn_API.Middlewares
         private static Task HandleExceptionAsync(HttpContext context, Exception exception)
         {
             context.Response.ContentType = "application/json";
-            context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
 
-            var response = new { message = "Đã xảy ra lỗi máy chủ. Vui lòng thử lại sau." }; // Thông báo an toàn cho Client
-            
-            return context.Response.WriteAsync(JsonSerializer.Serialize(response));
+            switch (exception)
+            {
+                case KeyNotFoundException e:
+                    context.Response.StatusCode = (int)HttpStatusCode.NotFound;
+                    return context.Response.WriteAsync(JsonSerializer.Serialize(new { message = e.Message }));
+
+                case UnauthorizedAccessException e:
+                    context.Response.StatusCode = (int)HttpStatusCode.Forbidden;
+                    return context.Response.WriteAsync(JsonSerializer.Serialize(new { message = "Bạn không có quyền thực hiện hành động này." }));
+
+                case InvalidOperationException e:
+                    context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+                    return context.Response.WriteAsync(JsonSerializer.Serialize(new { message = e.Message }));
+
+                default:
+                    context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
+                    return context.Response.WriteAsync(JsonSerializer.Serialize(new { message = "Đã xảy ra lỗi máy chủ. Vui lòng thử lại sau." }));
+            }
         }
     }
 }

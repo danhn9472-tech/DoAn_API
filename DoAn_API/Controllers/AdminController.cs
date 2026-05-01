@@ -1,4 +1,4 @@
-﻿﻿using DoAn_API.Services;
+﻿﻿﻿﻿using DoAn_API.Services;
 using DoAn_API.DTOs;
 using DoAn_API.Entities;
 using DoAn_API.Entities.Enums;
@@ -35,15 +35,8 @@ namespace DoAn_API.Controllers
         [HttpPost("comment-reports/{reportId}/resolve")]
         public async Task<IActionResult> ResolveCommentReport(int reportId, [FromQuery] bool deleteComment, [FromQuery] bool banUser = false)
         {
-            try
-            {
-                await _adminService.ResolveCommentReportAsync(reportId, deleteComment, banUser);
-                return Ok(new { message = "Đã xử lý báo cáo." });
-            }
-            catch (KeyNotFoundException)
-            {
-                return NotFound();
-            }
+            await _adminService.ResolveCommentReportAsync(reportId, deleteComment, banUser);
+            return Ok(new { message = "Đã xử lý báo cáo." });
         }
 
         // Lấy danh sách các báo cáo bài viết đang chờ xử lý
@@ -58,15 +51,8 @@ namespace DoAn_API.Controllers
         [HttpPost("post-reports/{reportId}/resolve")]
         public async Task<IActionResult> ResolvePostReport(int reportId, [FromQuery] bool deletePost, [FromQuery] bool banUser = false)
         {
-            try
-            {
-                await _adminService.ResolvePostReportAsync(reportId, deletePost, banUser);
-                return Ok(new { message = "Đã xử lý báo cáo bài viết." });
-            }
-            catch (KeyNotFoundException)
-            {
-                return NotFound();
-            }
+            await _adminService.ResolvePostReportAsync(reportId, deletePost, banUser);
+            return Ok(new { message = "Đã xử lý báo cáo bài viết." });
         }
 
         // Lấy danh sách tất cả người dùng
@@ -81,15 +67,8 @@ namespace DoAn_API.Controllers
         [HttpPost("users/{userId}/toggle-lockout")]
         public async Task<IActionResult> ToggleUserLockout(string userId)
         {
-            try
-            {
-                await _adminService.ToggleUserLockoutAsync(userId);
-                return Ok(new { message = "Cập nhật trạng thái khóa tài khoản thành công." });
-            }
-            catch (KeyNotFoundException)
-            {
-                return NotFound(new { message = "Không tìm thấy người dùng." });
-            }
+            await _adminService.ToggleUserLockoutAsync(userId);
+            return Ok(new { message = "Cập nhật trạng thái khóa tài khoản thành công." });
         }
 
         [HttpGet("statistics")]
@@ -110,15 +89,8 @@ namespace DoAn_API.Controllers
         [HttpPost("approve-post")]
         public async Task<IActionResult> ApprovePost(int id, string type, int newStatus)
         {
-            try
-            {
-                await _adminService.ApprovePostAsync(id, type, newStatus);
-                return Ok(new { message = "Cập nhật trạng thái thành công!" });
-            }
-            catch (KeyNotFoundException)
-            {
-                return NotFound();
-            }
+            await _adminService.ApprovePostAsync(id, type, newStatus);
+            return Ok(new { message = "Cập nhật trạng thái thành công!" });
         }
 
         [HttpPost("categories")]
@@ -132,15 +104,8 @@ namespace DoAn_API.Controllers
         [HttpPut("categories/{id}")]
         public async Task<IActionResult> UpdateCategory(int id, [FromBody] CategoryTreeDto dto)
         {
-            try
-            {
-                var result = await _adminService.UpdateCategoryAsync(id, dto);
-                return Ok(result);
-            }
-            catch (KeyNotFoundException)
-            {
-                return NotFound();
-            }
+            var result = await _adminService.UpdateCategoryAsync(id, dto);
+            return Ok(result);
         }
     }
 }
