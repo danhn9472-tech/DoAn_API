@@ -1,16 +1,19 @@
 ﻿using DoAn_API.Data;
 using DoAn_API.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace DoAn_API.Services
 {
     public class NutritionService
     {
         private readonly ApplicationDbContext _context;
+        private readonly IMemoryCache _cache;
 
-        public NutritionService(ApplicationDbContext context)
+        public NutritionService(ApplicationDbContext context, IMemoryCache cache)
         {
             _context = context;
+            _cache = cache;
         }
 
         public async Task CalculateTotalNutritionAsync(Recipe recipe)
@@ -19,7 +22,15 @@ namespace DoAn_API.Services
 
             double totalCalories = 0, totalProtein = 0, totalFat = 0, totalCarbs = 0;
 
-            var allNutritions = await _context.IngredientNutritions.ToListAsync();
+            // Kiểm tra xem dữ liệu đã có trong Cache chưa
+            if (!_cache.TryGetValue("AllIngredientsNutrition", out List<IngredientNutrition> allNutritions))
+            {
+                // Nếu chưa có (Lần gọi đầu tiên hoặc Cache đã hết hạn), lấy từ DB
+                allNutritions = await _context.IngredientNutritions.ToListAsync();
+                
+                // Lưu vào Cache, thiết lập thời gian sống là 24 giờ
+                _cache.Set("AllIngredientsNutrition", allNutritions, TimeSpan.FromHours(24));
+            }
 
             foreach (var item in recipe.RecipeIngredients)
             {

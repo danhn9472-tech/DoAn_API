@@ -1,5 +1,6 @@
 using DoAn_API.Data;
 using DoAn_API.Entities;
+using DoAn_API.Middlewares;
 using DoAn_API.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
@@ -44,6 +45,9 @@ builder.Services.AddSwaggerGen(options =>
         }
     });
 });
+
+// 1. Kích hoạt Caching trong bộ nhớ (RAM)
+builder.Services.AddMemoryCache();
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -104,6 +108,9 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+// 2. Đăng ký Global Exception Middleware (Phải đặt trước các Use khác)
+app.UseMiddleware<ExceptionMiddleware>();
 
 app.UseHttpsRedirection();
 
