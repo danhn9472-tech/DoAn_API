@@ -1,4 +1,7 @@
-﻿﻿﻿﻿﻿﻿namespace DoAn_API.DTOs
+﻿﻿using System;
+using System.Collections.Generic;
+
+﻿﻿﻿﻿namespace DoAn_API.DTOs
 {
     public class TipDTOs
     {
@@ -31,6 +34,18 @@
             public int PageSize { get; set; }
             public int TotalItems { get; set; }
             public int TotalPages { get; set; }
+        }
+
+        public class TopTipDto
+        {
+            public int Id { get; set; }
+            public string Title { get; set; }
+            public string Content { get; set; }
+            public string? ImageUrl { get; set; }
+            public DateTime CreatedAt { get; set; }
+            public int VoteCount { get; set; }
+            public string? AuthorName { get; set; }
+            public string? AuthorAvatarUrl { get; set; }
         }
     }
 }

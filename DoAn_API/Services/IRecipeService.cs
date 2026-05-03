@@ -9,6 +9,7 @@ namespace DoAn_API.Services
     {
         Task<RecipeDTOs.PaginatedRecipeResponseDto> GetRecipesAsync(int page, int pageSize);
         Task<RecipeDTOs.RecipeDetailDto> GetRecipeByIdAsync(int id);
+        Task<List<RecipeDTOs.TopRecipeDto>> GetTopRecipesAsync(int count);
         Task<IEnumerable<RecipeDTOs.RecipeListItemDto>> FilterByCategoriesAsync(List<int> categoryIds);
         Task<int> CreateRecipeAsync(RecipeDTOs.CreateRecipeRequestDto dto, string userId);
         Task UpdateRecipeAsync(int id, UpdateRecipeDto dto, string userId, bool isAdmin);

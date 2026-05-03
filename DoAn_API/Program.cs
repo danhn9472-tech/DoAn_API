@@ -94,7 +94,6 @@ builder.Services.AddControllers()
     });
 
 builder.Services.AddScoped<NutritionService>();
-builder.Services.AddScoped<ITopItemsService, TopItemsService>();
 builder.Services.AddScoped<IRecipeService, RecipeService>();
 builder.Services.AddScoped<ITipService, TipService>();
 builder.Services.AddScoped<IInteractionService, InteractionService>();

@@ -105,6 +105,28 @@ namespace DoAn_API.Services
             };
         }
 
+        public async Task<List<RecipeDTOs.TopRecipeDto>> GetTopRecipesAsync(int count)
+        {
+            return await _context.Recipes
+                .Where(r => r.Status == PostStatus.Approved)
+                .Include(r => r.User)
+                .OrderByDescending(r => r.Id)
+                .Take(count)
+                .Select(r => new RecipeDTOs.TopRecipeDto
+                {
+                    Id = r.Id,
+                    Title = r.Title,
+                    Description = r.Description,
+                    ImageUrl = r.ImageUrl,
+                    CookTime = r.CookTime,
+                    TotalCalories = r.TotalCalories,
+                    VoteCount = r.VoteCount,
+                    AuthorName = r.User != null ? (r.User.FullName ?? r.User.UserName) : "Đầu bếp gia đình",
+                    AuthorAvatarUrl = r.User != null ? r.User.AvatarUrl : null
+                })
+                .ToListAsync();
+        }
+
         public async Task<int> CreateRecipeAsync(RecipeDTOs.CreateRecipeRequestDto dto, string userId)
         {
             using var transaction = await _context.Database.BeginTransactionAsync();

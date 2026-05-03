@@ -14,12 +14,10 @@ namespace DoAn_API.Controllers
     [ApiController]
     public class RecipesController : ControllerBase
     {
-        private readonly ITopItemsService _topItemsService;
         private readonly IRecipeService _recipeService;
 
-        public RecipesController(ITopItemsService topItemsService, IRecipeService recipeService)
+        public RecipesController(IRecipeService recipeService)
         {
-            _topItemsService = topItemsService;
             _recipeService = recipeService;
         }
 
@@ -86,7 +84,7 @@ namespace DoAn_API.Controllers
         [AllowAnonymous] 
         public async Task<IActionResult> GetTopRecipes(int count)
         {
-            var recipes = await _topItemsService.GetTopRecipesAsync(count);
+            var recipes = await _recipeService.GetTopRecipesAsync(count);
             return Ok(recipes);
         }
 

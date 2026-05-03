@@ -73,14 +73,14 @@ namespace DoAn_API.Services
             };
         }
 
-        public async Task<List<TopTipDto>> GetTopTipsAsync(int count)
+        public async Task<List<TipDTOs.TopTipDto>> GetTopTipsAsync(int count)
         {
             return await _context.Tips
                 .Where(t => t.Status == PostStatus.Approved)
                 .Include(t => t.User)
                 .OrderByDescending(t => t.CreatedAt)
                 .Take(count)
-                .Select(t => new TopTipDto
+                .Select(t => new TipDTOs.TopTipDto
                 {
                     Id = t.Id,
                     Title = t.Title,
