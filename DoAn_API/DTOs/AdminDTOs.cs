@@ -42,5 +42,12 @@ namespace DoAn_API.DTOs
             public DateTimeOffset? LockoutEnd { get; set; }
             public IEnumerable<string> Roles { get; set; }
         }
+        public class ChartDataDto
+        {
+            public string Name { get; set; }
+            public int Users { get; set; }
+            public int Recipes { get; set; }
+            public int Tips { get; set; }
+        }
     }
 }

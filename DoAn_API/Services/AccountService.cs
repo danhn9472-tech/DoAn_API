@@ -38,7 +38,8 @@ namespace DoAn_API.Services
                 Email = model.Email,
                 SecurityStamp = Guid.NewGuid().ToString(),
                 UserName = model.Username,
-                FullName = model.FullName
+                FullName = model.FullName,
+                CreatedAt = DateTime.UtcNow
             };
 
             var result = await _userManager.CreateAsync(user, model.Password);

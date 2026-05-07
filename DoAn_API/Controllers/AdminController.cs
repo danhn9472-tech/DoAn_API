@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿using DoAn_API.Services;
+﻿﻿﻿﻿﻿﻿﻿﻿using DoAn_API.Services;
 using DoAn_API.DTOs;
 using DoAn_API.Entities;
 using DoAn_API.Entities.Enums;
@@ -76,6 +76,13 @@ namespace DoAn_API.Controllers
         {
             var stats = await _adminService.GetStatisticsAsync();
             return Ok(stats);
+        }
+
+        [HttpGet("chart-data")]
+        public async Task<IActionResult> GetChartData()
+        {
+            var data = await _adminService.GetChartDataAsync();
+            return Ok(data);
         }
 
         // ------DUYỆT RECIPE VÀ TIP------

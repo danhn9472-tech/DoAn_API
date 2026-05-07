@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿using DoAn_API.Data;
+﻿﻿﻿﻿﻿﻿﻿﻿using DoAn_API.Data;
 using DoAn_API.DTOs;
 using DoAn_API.Entities;
 using DoAn_API.Entities.Enums;
@@ -171,6 +171,49 @@ namespace DoAn_API.Services
                 PendingPosts = await _context.Recipes.CountAsync(r => r.Status == PostStatus.Pending)
                              + await _context.Tips.CountAsync(t => t.Status == PostStatus.Pending)
             };
+        }
+
+        public async Task<IEnumerable<AdminDTOs.ChartDataDto>> GetChartDataAsync()
+        {
+            var chartDataList = new List<AdminDTOs.ChartDataDto>();
+            
+            // Lấy thời điểm bắt đầu của 6 tháng trước
+            var now = System.DateTime.UtcNow;
+            var startDate = new System.DateTime(now.Year, now.Month, 1).AddMonths(-5);
+
+            // Sử dụng GroupBy trực tiếp trên DB nhờ Entity Framework
+            var recipesGrouped = await _context.Recipes
+                .Where(r => r.CreatedAt >= startDate)
+                .GroupBy(r => new { r.CreatedAt.Year, r.CreatedAt.Month })
+                .Select(g => new { g.Key.Year, g.Key.Month, Count = g.Count() })
+                .ToListAsync();
+
+            var tipsGrouped = await _context.Tips
+                .Where(t => t.CreatedAt >= startDate)
+                .GroupBy(t => new { t.CreatedAt.Year, t.CreatedAt.Month })
+                .Select(g => new { g.Key.Year, g.Key.Month, Count = g.Count() })
+                .ToListAsync();
+
+            var usersGrouped = await _userManager.Users
+                .Where(u => u.CreatedAt >= startDate)
+                .GroupBy(u => new { u.CreatedAt.Year, u.CreatedAt.Month })
+                .Select(g => new { g.Key.Year, g.Key.Month, Count = g.Count() })
+                .ToListAsync();
+
+            // Lặp qua 6 tháng để đảm bảo không bị khuyết tháng nào (nếu tháng đó Count = 0)
+            for (int i = 0; i < 6; i++)
+            {
+                var currentMonth = startDate.AddMonths(i);
+                chartDataList.Add(new AdminDTOs.ChartDataDto
+                {
+                    Name = $"Tháng {currentMonth.Month}",
+                    Recipes = recipesGrouped.FirstOrDefault(r => r.Year == currentMonth.Year && r.Month == currentMonth.Month)?.Count ?? 0,
+                    Tips = tipsGrouped.FirstOrDefault(t => t.Year == currentMonth.Year && t.Month == currentMonth.Month)?.Count ?? 0,
+                    Users = usersGrouped.FirstOrDefault(u => u.Year == currentMonth.Year && u.Month == currentMonth.Month)?.Count ?? 0
+                });
+            }
+
+            return chartDataList;
         }
 
         public async Task<IEnumerable<AdminDTOs.UserDto>> GetUsersAsync()

@@ -1,6 +1,7 @@
 ﻿﻿using DoAn_API.DTOs;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using static DoAn_API.DTOs.AdminDTOs;
 
 namespace DoAn_API.Services
 {
@@ -21,5 +22,6 @@ namespace DoAn_API.Services
         Task RestoreDeletedPostAsync(int id, string type);
         Task<IEnumerable<CommentResponseDto>> GetDeletedCommentsAsync();
         Task RestoreDeletedCommentAsync(int id);
+        Task<IEnumerable<AdminDTOs.ChartDataDto>> GetChartDataAsync();
     }
 }
