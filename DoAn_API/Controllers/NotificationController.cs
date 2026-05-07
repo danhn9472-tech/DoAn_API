@@ -33,5 +33,23 @@ namespace DoAn_API.Controllers
             await _notificationService.MarkAsReadAsync(id, userId);
             return Ok(new { message = "Đã đánh dấu đã đọc" });
         }
+
+        [HttpGet("unread-count")]
+        public async Task<IActionResult> GetUnreadCount()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
+            var count = await _notificationService.GetUnreadNotificationCountAsync(userId);
+            return Ok(count);
+        }
+
+        [HttpPut("read-all")]
+        public async Task<IActionResult> MarkAllAsRead()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
+            await _notificationService.MarkAllAsReadAsync(userId);
+            return Ok(new { message = "Đã đánh dấu tất cả là đã đọc" });
+        }
     }
 }

@@ -1,4 +1,4 @@
-﻿﻿using System.ComponentModel.DataAnnotations;
+﻿﻿﻿﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace DoAn_API.Entities
@@ -20,5 +20,9 @@ namespace DoAn_API.Entities
         public int PostId { get; set; }
         [ForeignKey("PostId")]
         public virtual Post Post { get; set; }
+
+        // Soft Delete
+        public bool IsDeleted { get; set; } = false;
+        public DateTime? DeletedAt { get; set; }
     }
 }

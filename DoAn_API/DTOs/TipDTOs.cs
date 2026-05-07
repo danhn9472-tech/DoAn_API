@@ -46,6 +46,7 @@ using System.Collections.Generic;
             public int VoteCount { get; set; }
             public string? AuthorName { get; set; }
             public string? AuthorAvatarUrl { get; set; }
+            public string UserId { get; set; }
         }
     }
 }

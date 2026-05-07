@@ -9,5 +9,7 @@ namespace DoAn_API.Services
         Task SendNotificationAsync(string userId, string message, string type, int? referenceId);
         Task<List<NotificationDto>> GetUserNotificationsAsync(string userId);
         Task MarkAsReadAsync(int notificationId, string userId);
+        Task<int> GetUnreadNotificationCountAsync(string userId);
+        Task MarkAllAsReadAsync(string userId);
     }
 }

@@ -1,4 +1,4 @@
-﻿using DoAn_API.DTOs;
+﻿﻿using DoAn_API.DTOs;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -17,5 +17,9 @@ namespace DoAn_API.Services
         Task ApprovePostAsync(int id, string type, int newStatus);
         Task<CategoryDTOs.CategoryTreeDto> CreateCategoryAsync(CategoryDTOs.CategoryTreeDto dto);
         Task<CategoryDTOs.CategoryTreeDto> UpdateCategoryAsync(int id, CategoryDTOs.CategoryTreeDto dto);
+        Task<IEnumerable<PendingPostDto>> GetDeletedPostsAsync();
+        Task RestoreDeletedPostAsync(int id, string type);
+        Task<IEnumerable<CommentResponseDto>> GetDeletedCommentsAsync();
+        Task RestoreDeletedCommentAsync(int id);
     }
 }

@@ -12,7 +12,7 @@ namespace DoAn_API.Services
         Task<List<RecipeDTOs.TopRecipeDto>> GetTopRecipesAsync(int count);
         Task<IEnumerable<RecipeDTOs.RecipeListItemDto>> FilterByCategoriesAsync(List<int> categoryIds);
         Task<int> CreateRecipeAsync(RecipeDTOs.CreateRecipeRequestDto dto, string userId);
-        Task UpdateRecipeAsync(int id, UpdateRecipeDto dto, string userId, bool isAdmin);
+        Task UpdateRecipeAsync(int id, RecipeDTOs.UpdateRecipeDto dto, string userId, bool isAdmin);
         Task DeleteRecipeAsync(int id, string userId, bool isAdmin);
     }
 }

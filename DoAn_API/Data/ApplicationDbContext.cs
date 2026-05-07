@@ -25,6 +25,11 @@ namespace DoAn_API.Data
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
+            
+            // Cấu hình Global Query Filter cho Soft Delete
+            // Tự động bỏ qua các bài viết đã bị xóa mềm (IsDeleted == true) trong mọi truy vấn
+            builder.Entity<Post>().HasQueryFilter(p => !p.IsDeleted);
+            builder.Entity<Comment>().HasQueryFilter(c => !c.IsDeleted);
 
             // Thiết lập Kế thừa (TPH - Table Per Hierarchy)
             builder.Entity<Post>()

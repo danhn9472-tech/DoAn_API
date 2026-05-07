@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿namespace DoAn_API.DTOs
+﻿﻿﻿﻿﻿﻿﻿﻿namespace DoAn_API.DTOs
 {
     public class CommentDto
     {
@@ -13,5 +13,6 @@
         public DateTime CreatedAt { get; set; }
         public string AuthorName { get; set; }
         public string? AuthorAvatarUrl { get; set; }
+        public string UserId { get; set; }
     }
 }

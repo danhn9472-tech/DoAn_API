@@ -52,9 +52,21 @@ builder.Services.AddMemoryCache();
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-builder.Services.AddIdentity<ApplicationUser, IdentityRole>()
-    .AddEntityFrameworkStores<ApplicationDbContext>()
-    .AddDefaultTokenProviders();
+builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
+{
+    // CẤU HÌNH MẬT KHẨU
+    options.Password.RequiredLength = 6;            // Độ dài tối thiểu là 6 ký tự
+    options.Password.RequireDigit = false;          // Không bắt buộc phải có chữ số (0-9)
+    options.Password.RequireLowercase = false;      // Không bắt buộc phải có chữ thường (a-z)
+    options.Password.RequireUppercase = false;      // Không bắt buộc phải có chữ hoa (A-Z)
+    options.Password.RequireNonAlphanumeric = false;// Không bắt buộc ký tự đặc biệt (!@#$...)
+    options.Password.RequiredUniqueChars = 0;
+    options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15); // Khóa 15 phút
+    options.Lockout.MaxFailedAccessAttempts = 5;                       // Khóa sau 5 lần nhập sai
+    options.Lockout.AllowedForNewUsers = true;                         // Áp dụng cho cả user mới tạo
+})
+.AddEntityFrameworkStores<ApplicationDbContext>()
+.AddDefaultTokenProviders();
 
 builder.Services.AddAuthentication(options =>
 {
@@ -80,10 +92,13 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowMVC",
-        builder => builder.WithOrigins("https://localhost:5138") 
-                          .AllowAnyMethod()
-                          .AllowAnyHeader());
+    options.AddPolicy("AllowNextJsApp", policy =>
+    {
+        policy.WithOrigins("http://localhost:3000") // URL Frontend của bạn
+              .AllowAnyHeader()  // Cho phép mọi Headers (như Authorization, Content-Type...)
+              .AllowAnyMethod()  // Cho phép mọi Methods (GET, POST, PUT, DELETE...)
+              .AllowCredentials(); // Rất quan trọng nếu bạn gửi Token kèm theo
+    });
 });
 
 builder.Services.AddControllers()
@@ -101,6 +116,8 @@ builder.Services.AddScoped<IUserActivityService, UserActivityService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IUploadService, UploadService>();
+builder.Services.AddScoped<IAccountService, AccountService>();
+builder.Services.AddScoped<IPostDeletionService, PostDeletionService>(); // <-- Thêm dòng này
 
 var app = builder.Build();
 
@@ -112,10 +129,11 @@ if (app.Environment.IsDevelopment())
 
 // 2. Đăng ký Global Exception Middleware (Phải đặt trước các Use khác)
 app.UseMiddleware<ExceptionMiddleware>();
-
+app.UseRouting();
+app.UseCors("AllowNextJsApp");
 app.UseHttpsRedirection();
+app.UseStaticFiles();
 
-app.UseCors("AllowMVC");
 app.UseAuthentication();
 app.UseAuthorization();
 

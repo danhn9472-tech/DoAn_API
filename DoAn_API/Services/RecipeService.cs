@@ -15,12 +15,14 @@ namespace DoAn_API.Services
         private readonly ApplicationDbContext _context;
         private readonly NutritionService _nutritionService;
         private readonly IUploadService _uploadService;
+        private readonly IPostDeletionService _postDeletionService;
 
-        public RecipeService(ApplicationDbContext context, NutritionService nutritionService, IUploadService uploadService)
+        public RecipeService(ApplicationDbContext context, NutritionService nutritionService, IUploadService uploadService, IPostDeletionService postDeletionService)
         {
             _context = context;
             _nutritionService = nutritionService;
             _uploadService = uploadService;
+            _postDeletionService = postDeletionService;
         }
 
         public async Task<RecipeDTOs.PaginatedRecipeResponseDto> GetRecipesAsync(int page, int pageSize)
@@ -100,7 +102,7 @@ namespace DoAn_API.Services
                 VoteCount = recipe.VoteCount,
                 SaveCount = recipe.SaveCount,
                 Categories = recipe.RecipeCategories.Select(rc => new RecipeDTOs.CategoryDto { Id = rc.CategoryId, Name = rc.Category.Name }).ToList(),
-                Ingredients = recipe.RecipeIngredients.Select(ri => new RecipeDTOs.RecipeIngredientDetailDto { IngredientName = ri.Ingredient.Name, Amount = ri.Amount, Unit = ri.Unit }).ToList(),
+                Ingredients = recipe.RecipeIngredients.Select(ri => new RecipeDTOs.RecipeIngredientDetailDto { IngredientId = ri.IngredientId, IngredientName = ri.Ingredient.Name, Amount = ri.Amount, Unit = ri.Unit }).ToList(),
                 Steps = recipe.RecipeSteps.OrderBy(s => s.StepOrder).Select(s => new RecipeDTOs.RecipeStepDetailDto { StepOrder = s.StepOrder, Content = s.Content, ImageUrl = s.ImageUrl }).ToList()
             };
         }
@@ -119,10 +121,12 @@ namespace DoAn_API.Services
                     Description = r.Description,
                     ImageUrl = r.ImageUrl,
                     CookTime = r.CookTime,
+                    Difficulty = r.Difficulty,
                     TotalCalories = r.TotalCalories,
                     VoteCount = r.VoteCount,
                     AuthorName = r.User != null ? (r.User.FullName ?? r.User.UserName) : "Đầu bếp gia đình",
-                    AuthorAvatarUrl = r.User != null ? r.User.AvatarUrl : null
+                    AuthorAvatarUrl = r.User != null ? r.User.AvatarUrl : null,
+                    UserId = r.UserId
                 })
                 .ToListAsync();
         }
@@ -152,7 +156,7 @@ namespace DoAn_API.Services
                         : new List<RecipeIngredient>(),
 
                     RecipeSteps = dto.Steps != null
-                        ? dto.Steps.Select((s, index) => new RecipeStep { StepOrder = index + 1, Content = s.Instruction, ImageUrl = s.ImageUrl }).ToList()
+                        ? dto.Steps.Select((s, index) => new RecipeStep { StepOrder = s.StepOrder > 0 ? s.StepOrder : index + 1, Content = s.Content, ImageUrl = s.ImageUrl }).ToList()
                         : new List<RecipeStep>()
                 };
 
@@ -170,7 +174,7 @@ namespace DoAn_API.Services
             }
         }
 
-        public async Task UpdateRecipeAsync(int id, UpdateRecipeDto dto, string userId, bool isAdmin)
+        public async Task UpdateRecipeAsync(int id, RecipeDTOs.UpdateRecipeDto dto, string userId, bool isAdmin)
         {
             var recipe = await _context.Recipes
                 .Include(r => r.RecipeIngredients)
@@ -187,7 +191,7 @@ namespace DoAn_API.Services
             recipe.Difficulty = (DifficultyLevel)dto.Difficulty;
             
             // Kiểm tra: Nếu có ảnh mới gửi lên và khác với ảnh hiện tại -> Xóa ảnh cũ
-            if (!string.IsNullOrEmpty(dto.ImageUrl) && recipe.ImageUrl != dto.ImageUrl)
+            if (recipe.ImageUrl != dto.ImageUrl)
             {
                 if (!string.IsNullOrEmpty(recipe.ImageUrl))
                 {
@@ -227,8 +231,8 @@ namespace DoAn_API.Services
             int stepNum = 1;
             recipe.RecipeSteps = dto.Steps.Select(s => new RecipeStep
             {
-                StepOrder = stepNum++,
-                Content = s.Instruction,
+                StepOrder = s.StepOrder > 0 ? s.StepOrder : stepNum++,
+                Content = s.Content,
                 ImageUrl = s.ImageUrl
             }).ToList();
 
@@ -241,31 +245,13 @@ namespace DoAn_API.Services
         {
             var recipe = await _context.Recipes
                 .Include(r => r.Comments)
-                .Include(r => r.RecipeSteps) // Cần Include RecipeSteps để có thể đọc được dữ liệu ảnh
+                .Include(r => r.RecipeSteps)
                 .FirstOrDefaultAsync(r => r.Id == id);
             if (recipe == null) throw new KeyNotFoundException("Không tìm thấy công thức.");
             if (recipe.UserId != userId && !isAdmin) throw new UnauthorizedAccessException("Bạn không có quyền xóa công thức này.");
 
-            var activities = _context.UserActivities.Where(ua => ua.PostId == id);
-            _context.UserActivities.RemoveRange(activities);
-            if (recipe.Comments != null && recipe.Comments.Any()) _context.Comments.RemoveRange(recipe.Comments);
+            _postDeletionService.QueueFullPostDeletion(recipe);
 
-            // Xóa ảnh bìa của công thức khỏi thư mục vật lý (wwwroot/images)
-            if (!string.IsNullOrEmpty(recipe.ImageUrl))
-            {
-                _uploadService.DeleteImage(recipe.ImageUrl);
-            }
-
-            // Lặp qua và xóa toàn bộ ảnh trong các bước thực hiện
-            foreach (var step in recipe.RecipeSteps)
-            {
-                if (!string.IsNullOrEmpty(step.ImageUrl))
-                {
-                    _uploadService.DeleteImage(step.ImageUrl);
-                }
-            }
-
-            _context.Recipes.Remove(recipe);
             await _context.SaveChangesAsync();
         }
 
@@ -282,6 +268,8 @@ namespace DoAn_API.Services
 
             return await query
                 .Include(r => r.User)
+                .Include(r => r.RecipeCategories)
+                    .ThenInclude(rc => rc.Category)
                 .OrderByDescending(r => r.Id)
                 .Select(r => new RecipeDTOs.RecipeListItemDto
                 {
@@ -290,10 +278,18 @@ namespace DoAn_API.Services
                     Description = r.Description,
                     ImageUrl = r.ImageUrl,
                     CookTime = r.CookTime,
+                    Difficulty = r.Difficulty,
                     TotalCalories = r.TotalCalories,
                     VoteCount = r.VoteCount,
                     SaveCount = r.SaveCount,
-                    AuthorName = r.User != null ? (r.User.FullName ?? r.User.UserName) : "Đầu bếp gia đình"
+                    UserId = r.UserId,
+                    Status = r.Status,
+                    AuthorName = r.User != null ? (r.User.FullName ?? r.User.UserName) : "Đầu bếp gia đình",
+                    AuthorAvatarUrl = r.User != null ? r.User.AvatarUrl : null,
+                    Categories = r.RecipeCategories.Select(rc => new RecipeDTOs.CategoryDto {
+                        Id = rc.Category.Id,
+                        Name = rc.Category.Name
+                    }).ToList()
                 }).ToListAsync();
         }
     }

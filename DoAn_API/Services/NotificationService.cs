@@ -40,8 +40,13 @@ namespace DoAn_API.Services
                 .Take(20) 
                 .Select(n => new NotificationDto
                 {
-                    Id = n.Id, Message = n.Message, Type = n.Type, 
-                    ReferenceId = n.ReferenceId, IsRead = n.IsRead, CreatedAt = n.CreatedAt
+                Id = n.Id, 
+                Message = n.Message, 
+                Type = n.Type, 
+                ReferenceId = n.ReferenceId, 
+                IsRead = n.IsRead, 
+                CreatedAt = n.CreatedAt,
+                UserId = n.UserId
                 }).ToListAsync();
         }
 
@@ -54,6 +59,19 @@ namespace DoAn_API.Services
                 notification.IsRead = true;
                 await _context.SaveChangesAsync();
             }
+        }
+
+        public async Task<int> GetUnreadNotificationCountAsync(string userId)
+        {
+            return await _context.Notifications
+                .CountAsync(n => n.UserId == userId && !n.IsRead);
+        }
+
+        public async Task MarkAllAsReadAsync(string userId)
+        {
+            await _context.Notifications
+                .Where(n => n.UserId == userId && !n.IsRead)
+                .ExecuteUpdateAsync(s => s.SetProperty(n => n.IsRead, true));
         }
     }
 }

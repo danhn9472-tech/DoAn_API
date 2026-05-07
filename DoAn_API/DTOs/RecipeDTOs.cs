@@ -1,17 +1,20 @@
-﻿﻿﻿﻿﻿﻿﻿﻿namespace DoAn_API.DTOs
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿namespace DoAn_API.DTOs
 {
     public class RecipeDTOs
     {
-        public class CreateRecipeRequestDto
+        public abstract class RecipeRequestBaseDto
         {
             public string Title { get; set; }
             public string? Description { get; set; }
             public int CookTime { get; set; }
-            public int TotalCalories { get; set; }
             public int Difficulty { get; set; }
             public string? ImageUrl { get; set; }
 
             public List<int> CategoryIds { get; set; } = new List<int>();
+        }
+
+        public class CreateRecipeRequestDto : RecipeRequestBaseDto
+        {
             public List<IngredientDto> Ingredients { get; set; } = new List<IngredientDto>();
             public List<StepDto> Steps { get; set; } = new List<StepDto>();
         }
@@ -25,9 +28,22 @@
 
         public class StepDto
         {
-            public int StepNumber { get; set; }
-            public string Instruction { get; set; }
+            public int StepOrder { get; set; }
+            public string Content { get; set; }
             public string? ImageUrl { get; set; } 
+        }
+
+        public class UpdateRecipeDto : RecipeRequestBaseDto
+        {
+            public List<IngredientDto> Ingredients { get; set; } = new List<IngredientDto>();
+            public List<UpdateStepDto> Steps { get; set; } = new List<UpdateStepDto>();
+        }
+
+        public class UpdateStepDto
+        {
+            public int StepOrder { get; set; } 
+            public string Content { get; set; }
+            public string? ImageUrl { get; set; }
         }
 
         public class PaginatedRecipeResponseDto
@@ -88,6 +104,7 @@
 
         public class RecipeIngredientDetailDto
         {
+            public int IngredientId { get; set; }
             public string IngredientName { get; set; }
             public double Amount { get; set; }
             public string Unit { get; set; }
@@ -107,10 +124,13 @@
             public string? Description { get; set; }
             public string? ImageUrl { get; set; }
             public int CookTime { get; set; }
+            public DoAn_API.Entities.Enums.DifficultyLevel Difficulty { get; set; }
             public double TotalCalories { get; set; }
             public int VoteCount { get; set; }
+            public int SaveCount { get; set; }
             public string? AuthorName { get; set; }
             public string? AuthorAvatarUrl { get; set; }
+            public string UserId { get; set; }
         }
     }
 }

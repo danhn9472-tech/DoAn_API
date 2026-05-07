@@ -92,6 +92,22 @@ namespace DoAn_API.Controllers
             return Ok(new { count = result.Count, status = result.Status });
         }
 
+        // ------ KIỂM TRA TRẠNG THÁI THÍCH/LƯU ------
+        [AllowAnonymous]
+        [HttpGet("status/{itemType}/{itemId}")]
+        public async Task<IActionResult> CheckStatus(string itemType, int itemId)
+        {
+            var validTypes = new[] { "recipe", "tip" };
+            if (!validTypes.Contains(itemType.ToLower()))
+            {
+                return BadRequest(new { message = "Loại item không hợp lệ. Dùng 'recipe' hoặc 'tip'" });
+            }
+
+            if (string.IsNullOrEmpty(CurrentUserId)) return Ok(new { isVoted = false, isSaved = false });
+            var (isVoted, isSaved) = await _interactionService.CheckStatusAsync(itemType.ToLower(), itemId, CurrentUserId);
+            return Ok(new { isVoted, isSaved });
+        }
+
         // GỬI BÁO CÁO BÌNH LUẬN
         [Authorize]
         [HttpPost("comment/{commentId}/report")]

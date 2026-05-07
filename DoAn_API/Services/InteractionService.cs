@@ -107,11 +107,16 @@ namespace DoAn_API.Services
                 await _notificationService.SendNotificationAsync(post.UserId, $"Bài viết '{post.Title}' của bạn vừa có bình luận mới.", "Comment", post.Id);
             }
 
+            var user = await _context.Users.FindAsync(userId);
+
             return new CommentResponseDto
             {
                 Id = comment.Id,
                 Content = comment.Content,
-                CreatedAt = comment.CreatedAt
+                CreatedAt = comment.CreatedAt,
+                UserId = comment.UserId,
+                AuthorName = user != null ? (user.FullName ?? user.UserName) : "Thành viên NutriCook",
+                AuthorAvatarUrl = user != null ? user.AvatarUrl : null
             };
         }
 
@@ -127,7 +132,8 @@ namespace DoAn_API.Services
                     Content = c.Content,
                     CreatedAt = c.CreatedAt,
                     AuthorName = c.User != null ? (c.User.FullName ?? c.User.UserName) : "Thành viên NutriCook",
-                    AuthorAvatarUrl = c.User != null ? c.User.AvatarUrl : null
+                    AuthorAvatarUrl = c.User != null ? c.User.AvatarUrl : null,
+                    UserId = c.UserId
                 })
                 .ToListAsync();
         }
@@ -223,6 +229,13 @@ namespace DoAn_API.Services
 
             _context.PostReports.Add(report);
             await _context.SaveChangesAsync();
+        }
+
+        public async Task<(bool IsVoted, bool IsSaved)> CheckStatusAsync(string itemType, int itemId, string userId)
+        {
+            var activity = await _context.UserActivities
+                .FirstOrDefaultAsync(x => x.UserId == userId && x.PostId == itemId);
+            return activity == null ? (false, false) : (activity.IsVoted, activity.IsSaved);
         }
     }
 }

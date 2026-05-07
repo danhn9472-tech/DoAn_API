@@ -1,4 +1,4 @@
-﻿﻿﻿﻿using DoAn_API.Services;
+﻿﻿﻿﻿﻿﻿using DoAn_API.Services;
 using DoAn_API.DTOs;
 using DoAn_API.Entities;
 using DoAn_API.Entities.Enums;
@@ -106,6 +106,38 @@ namespace DoAn_API.Controllers
         {
             var result = await _adminService.UpdateCategoryAsync(id, dto);
             return Ok(result);
+        }
+
+        // Lấy danh sách bài viết trong thùng rác
+        [HttpGet("deleted-posts")]
+        public async Task<IActionResult> GetDeletedPosts()
+        {
+            var posts = await _adminService.GetDeletedPostsAsync();
+            return Ok(posts);
+        }
+
+        // Khôi phục bài viết
+        [HttpPost("restore-post")]
+        public async Task<IActionResult> RestorePost(int id, string type)
+        {
+            await _adminService.RestoreDeletedPostAsync(id, type);
+            return Ok(new { message = "Khôi phục bài viết thành công!" });
+        }
+
+        // Lấy danh sách bình luận trong thùng rác
+        [HttpGet("deleted-comments")]
+        public async Task<IActionResult> GetDeletedComments()
+        {
+            var comments = await _adminService.GetDeletedCommentsAsync();
+            return Ok(comments);
+        }
+
+        // Khôi phục bình luận
+        [HttpPost("restore-comment")]
+        public async Task<IActionResult> RestoreComment(int id)
+        {
+            await _adminService.RestoreDeletedCommentAsync(id);
+            return Ok(new { message = "Khôi phục bình luận thành công!" });
         }
     }
 }

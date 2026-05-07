@@ -7,11 +7,13 @@ namespace DoAn_API.Middlewares
     {
         private readonly RequestDelegate _next;
         private readonly ILogger<ExceptionMiddleware> _logger;
+        private readonly IWebHostEnvironment _env;
 
-        public ExceptionMiddleware(RequestDelegate next, ILogger<ExceptionMiddleware> logger)
+        public ExceptionMiddleware(RequestDelegate next, ILogger<ExceptionMiddleware> logger, IWebHostEnvironment env)
         {
             _next = next;
             _logger = logger;
+            _env = env;
         }
 
         public async Task InvokeAsync(HttpContext context)
@@ -25,11 +27,11 @@ namespace DoAn_API.Middlewares
             {
                 // Bắt toàn bộ lỗi tại đây
                 _logger.LogError(ex, "Đã xảy ra lỗi không mong muốn trong hệ thống.");
-                await HandleExceptionAsync(context, ex);
+                await HandleExceptionAsync(context, ex, _env);
             }
         }
 
-        private static Task HandleExceptionAsync(HttpContext context, Exception exception)
+        private static Task HandleExceptionAsync(HttpContext context, Exception exception, IWebHostEnvironment env)
         {
             context.Response.ContentType = "application/json";
 
@@ -49,7 +51,16 @@ namespace DoAn_API.Middlewares
 
                 default:
                     context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
-                    return context.Response.WriteAsync(JsonSerializer.Serialize(new { message = "Đã xảy ra lỗi máy chủ. Vui lòng thử lại sau." }));
+                    object response;
+                    if (env.IsDevelopment())
+                    {
+                        response = new { message = exception.Message, detail = exception.StackTrace };
+                    }
+                    else
+                    {
+                        response = new { message = "Đã xảy ra lỗi máy chủ. Vui lòng thử lại sau." };
+                    }
+                    return context.Response.WriteAsync(JsonSerializer.Serialize(response));
             }
         }
     }

@@ -22,8 +22,6 @@ namespace DoAn_API.Entities
         [ForeignKey("UserId")]
         public virtual ApplicationUser User { get; set; }
 
-        public string? AuthorName { get; set; }
-
         public PostStatus Status { get; set; } = PostStatus.Pending;
 
         public virtual ICollection<Comment> Comments { get; set; }
@@ -31,5 +29,8 @@ namespace DoAn_API.Entities
 
         public int VoteCount { get; set; } = 0;
         public int SaveCount { get; set; } = 0;
+        //soft delete
+        public bool IsDeleted { get; set; } = false;
+        public DateTime? DeletedAt { get; set; }
     }
 }

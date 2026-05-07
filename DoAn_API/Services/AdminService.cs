@@ -1,4 +1,4 @@
-﻿﻿using DoAn_API.Data;
+﻿﻿﻿﻿﻿﻿using DoAn_API.Data;
 using DoAn_API.DTOs;
 using DoAn_API.Entities;
 using DoAn_API.Entities.Enums;
@@ -17,13 +17,15 @@ namespace DoAn_API.Services
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IMemoryCache _cache;
         private readonly INotificationService _notificationService;
+        private readonly IPostDeletionService _postDeletionService;
 
-        public AdminService(ApplicationDbContext context, UserManager<ApplicationUser> userManager, IMemoryCache cache, INotificationService notificationService)
+        public AdminService(ApplicationDbContext context, UserManager<ApplicationUser> userManager, IMemoryCache cache, INotificationService notificationService, IPostDeletionService postDeletionService)
         {
             _context = context;
             _userManager = userManager;
             _cache = cache;
             _notificationService = notificationService;
+            _postDeletionService = postDeletionService;
         }
 
         public async Task<IEnumerable<AdminDTOs.PendingReportDto>> GetPendingCommentReportsAsync()
@@ -56,9 +58,28 @@ namespace DoAn_API.Services
 
             var authorId = report.Comment?.UserId;
 
-            if (deleteComment && report.Comment != null) _context.Comments.Remove(report.Comment);
-            
-            report.Status = deleteComment ? ReportStatus.Resolved : ReportStatus.Dismissed;
+            if (deleteComment && report.Comment != null)
+            {
+                // Thực hiện Soft Delete thay vì xóa vật lý
+                report.Comment.IsDeleted = true;
+                report.Comment.DeletedAt = System.DateTime.UtcNow;
+
+                // Lấy tất cả các báo cáo liên quan đến Comment này
+                var relatedReports = await _context.CommentReports
+                    .Where(r => r.CommentId == report.CommentId)
+                    .ToListAsync();
+                
+                // Cập nhật trạng thái tất cả báo cáo liên quan thành Resolved (đã xử lý)
+                foreach (var relReport in relatedReports)
+                {
+                    relReport.Status = ReportStatus.Resolved;
+                }
+            }
+            else
+            {
+                // Nếu không xóa comment thì chỉ Dismiss (từ chối báo cáo) hoặc xử lý theo ý bạn
+                report.Status = ReportStatus.Dismissed;
+            }
 
             // Thực hiện khóa User nếu được yêu cầu
             if (banUser && !string.IsNullOrEmpty(authorId))
@@ -102,6 +123,7 @@ namespace DoAn_API.Services
         {
             var report = await _context.PostReports
                 .Include(r => r.Recipe).ThenInclude(rc => rc.Comments)
+                .Include(r => r.Recipe).ThenInclude(rc => rc.RecipeSteps)
                 .Include(r => r.Tip).ThenInclude(t => t.Comments)
                 .FirstOrDefaultAsync(r => r.Id == reportId);
 
@@ -111,28 +133,19 @@ namespace DoAn_API.Services
 
             if (deletePost)
             {
-                int postId = report.RecipeId ?? report.TipId ?? 0;
-                if (postId > 0)
+                // Ép kiểu rõ ràng cả hai vế về (Post) để tránh lỗi CS0173 của trình biên dịch C#
+                Post postToDelete = report.RecipeId.HasValue ? (Post)report.Recipe : (Post)report.Tip;
+                if (postToDelete != null)
                 {
-                    var activities = _context.UserActivities.Where(ua => ua.PostId == postId);
-                    _context.UserActivities.RemoveRange(activities);
-                }
-
-                if (report.RecipeId.HasValue && report.Recipe != null)
-                {
-                    if (report.Recipe.Comments != null && report.Recipe.Comments.Any())
-                        _context.Comments.RemoveRange(report.Recipe.Comments);
-                    _context.Recipes.Remove(report.Recipe);
-                }
-                else if (report.TipId.HasValue && report.Tip != null)
-                {
-                    if (report.Tip.Comments != null && report.Tip.Comments.Any())
-                        _context.Comments.RemoveRange(report.Tip.Comments);
-                    _context.Tips.Remove(report.Tip);
+                    // Service sẽ xử lý việc xóa bài đăng và TẤT CẢ dữ liệu liên quan của nó, bao gồm tất cả báo cáo, bình luận, hoạt động và hình ảnh.
+                    _postDeletionService.QueueFullPostDeletion(postToDelete);
                 }
             }
-            
-            report.Status = deletePost ? ReportStatus.Resolved : ReportStatus.Dismissed;
+            else
+            {
+                // Nếu không xóa bài viết thì chỉ cập nhật trạng thái Dismissed (từ chối)
+                report.Status = ReportStatus.Dismissed;
+            }
 
             // Thực hiện khóa User nếu được yêu cầu
             if (banUser && !string.IsNullOrEmpty(authorId))
@@ -210,7 +223,8 @@ namespace DoAn_API.Services
                     CreatedAt = r.CreatedAt,
                     Type = "Recipe",
                     ImageUrl = r.ImageUrl,
-                    AuthorAvatarUrl = r.User !=null ? r.User.AvatarUrl : null
+                    AuthorAvatarUrl = r.User !=null ? r.User.AvatarUrl : null,
+                    UserId = r.UserId
                 }).ToListAsync();
 
             var tips = await _context.Tips
@@ -223,7 +237,8 @@ namespace DoAn_API.Services
                     CreatedAt = t.CreatedAt,
                     Type = "Tip",
                     ImageUrl = t.ImageUrl,
-                    AuthorAvatarUrl = t.User != null ? t.User.AvatarUrl : null
+                    AuthorAvatarUrl = t.User != null ? t.User.AvatarUrl : null,
+                    UserId = t.UserId
                 }).ToListAsync();
 
             return recipes.Concat(tips).OrderByDescending(p => p.CreatedAt);
@@ -291,6 +306,88 @@ namespace DoAn_API.Services
             _cache.Remove("CategoryTree");
 
             return dto;
+        }
+
+        public async Task<IEnumerable<PendingPostDto>> GetDeletedPostsAsync()
+        {
+            var recipes = await _context.Recipes
+                .IgnoreQueryFilters() // Vô hiệu hóa Global Query Filter
+                .Where(r => r.IsDeleted)
+                .Select(r => new PendingPostDto
+                {
+                    Id = r.Id,
+                    Title = r.Title,
+                    AuthorName = r.User != null ? (r.User.FullName ?? r.User.UserName) : "Ẩn danh",
+                    CreatedAt = r.DeletedAt ?? r.CreatedAt, // Hiển thị ngày bị xóa thay vì ngày tạo
+                    Type = "Recipe",
+                    ImageUrl = r.ImageUrl,
+                    AuthorAvatarUrl = r.User != null ? r.User.AvatarUrl : null,
+                    UserId = r.UserId
+                }).ToListAsync();
+
+            var tips = await _context.Tips
+                .IgnoreQueryFilters() // Vô hiệu hóa Global Query Filter
+                .Where(t => t.IsDeleted)
+                .Select(t => new PendingPostDto
+                {
+                    Id = t.Id,
+                    Title = t.Title,
+                    AuthorName = t.User != null ? (t.User.FullName ?? t.User.UserName) : "Ẩn danh",
+                    CreatedAt = t.DeletedAt ?? t.CreatedAt,
+                    Type = "Tip",
+                    ImageUrl = t.ImageUrl,
+                    AuthorAvatarUrl = t.User != null ? t.User.AvatarUrl : null,
+                    UserId = t.UserId
+                }).ToListAsync();
+
+            // Gom chung Recipe và Tip lại, sắp xếp theo ngày xóa mới nhất
+            return recipes.Concat(tips).OrderByDescending(p => p.CreatedAt);
+        }
+
+        public async Task RestoreDeletedPostAsync(int id, string type)
+        {
+            Post post = null;
+            if (type == "Recipe")
+            {
+                post = await _context.Recipes.IgnoreQueryFilters().FirstOrDefaultAsync(r => r.Id == id && r.IsDeleted);
+            }
+            else
+            {
+                post = await _context.Tips.IgnoreQueryFilters().FirstOrDefaultAsync(t => t.Id == id && t.IsDeleted);
+            }
+
+            if (post == null) throw new KeyNotFoundException("Không tìm thấy bài viết đã xóa.");
+
+            _postDeletionService.RestorePost(post);
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task<IEnumerable<CommentResponseDto>> GetDeletedCommentsAsync()
+        {
+            return await _context.Comments
+                .IgnoreQueryFilters()
+                .Where(c => c.IsDeleted)
+                .Include(c => c.User)
+                .Select(c => new CommentResponseDto
+                {
+                    Id = c.Id,
+                    Content = c.Content,
+                    CreatedAt = c.DeletedAt ?? c.CreatedAt,
+                    AuthorName = c.User != null ? (c.User.FullName ?? c.User.UserName) : "Ẩn danh",
+                    AuthorAvatarUrl = c.User != null ? c.User.AvatarUrl : null,
+                    UserId = c.UserId
+                }).ToListAsync();
+        }
+
+        public async Task RestoreDeletedCommentAsync(int id)
+        {
+            var comment = await _context.Comments.IgnoreQueryFilters().FirstOrDefaultAsync(c => c.Id == id && c.IsDeleted);
+            if (comment == null) throw new KeyNotFoundException("Không tìm thấy bình luận đã xóa.");
+
+            comment.IsDeleted = false;
+            comment.DeletedAt = null;
+
+            await _context.SaveChangesAsync();
         }
     }
 }

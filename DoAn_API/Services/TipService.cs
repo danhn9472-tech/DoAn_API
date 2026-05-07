@@ -14,11 +14,13 @@ namespace DoAn_API.Services
     {
         private readonly ApplicationDbContext _context;
         private readonly IUploadService _uploadService;
+        private readonly IPostDeletionService _postDeletionService;
 
-        public TipService(ApplicationDbContext context, IUploadService uploadService)
+        public TipService(ApplicationDbContext context, IUploadService uploadService, IPostDeletionService postDeletionService)
         {
             _context = context;
             _uploadService = uploadService;
+            _postDeletionService = postDeletionService;
         }
 
         public async Task<TipDTOs.PaginatedTipResponseDto> GetTipsAsync(int page, int pageSize)
@@ -89,7 +91,8 @@ namespace DoAn_API.Services
                     CreatedAt = t.CreatedAt,
                     VoteCount = t.VoteCount,
                     AuthorName = t.User != null ? (t.User.FullName ?? t.User.UserName) : "Đầu bếp gia đình",
-                    AuthorAvatarUrl = t.User != null ? t.User.AvatarUrl : null
+                    AuthorAvatarUrl = t.User != null ? t.User.AvatarUrl : null,
+                    UserId = t.UserId
                 })
                 .ToListAsync();
         }
@@ -138,22 +141,8 @@ namespace DoAn_API.Services
             var tip = await _context.Tips.Include(t => t.Comments).FirstOrDefaultAsync(t => t.Id == id);
             if (tip == null) throw new KeyNotFoundException("Không tìm thấy bài viết.");
             if (tip.UserId != userId && !isAdmin) throw new UnauthorizedAccessException("Bạn không có quyền xóa bài viết này.");
+            _postDeletionService.QueueFullPostDeletion(tip);
 
-            var activities = _context.UserActivities.Where(ua => ua.PostId == id);
-            _context.UserActivities.RemoveRange(activities);
-
-            if (tip.Comments != null && tip.Comments.Any())
-            {
-                _context.Comments.RemoveRange(tip.Comments);
-            }
-
-            // Xóa ảnh bìa của mẹo vặt khỏi máy chủ trước khi xóa bản ghi
-            if (!string.IsNullOrEmpty(tip.ImageUrl))
-            {
-                _uploadService.DeleteImage(tip.ImageUrl);
-            }
-
-            _context.Tips.Remove(tip);
             await _context.SaveChangesAsync();
         }
     }

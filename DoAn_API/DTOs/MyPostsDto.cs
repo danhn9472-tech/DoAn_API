@@ -26,6 +26,7 @@
         public string? Description { get; set; }
         public string? ImageUrl { get; set; }
         public int CookTime { get; set; }
+        public DoAn_API.Entities.Enums.DifficultyLevel Difficulty { get; set; }
         public double TotalCalories { get; set; }
         public int Status { get; set; }
         public DateTime CreatedAt { get; set; }

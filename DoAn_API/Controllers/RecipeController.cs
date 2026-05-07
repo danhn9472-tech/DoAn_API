@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿using DoAn_API.Data;
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿using DoAn_API.Data;
 using DoAn_API.DTOs;
 using DoAn_API.Entities;
 using DoAn_API.Entities.Enums;
@@ -58,7 +58,7 @@ namespace DoAn_API.Controllers
         //-----SỬA CÔNG THỨC-----
         [HttpPut("{id}")]
         [Authorize]
-        public async Task<IActionResult> PutRecipe(int id, [FromBody] UpdateRecipeDto dto)
+        public async Task<IActionResult> PutRecipe(int id, [FromBody] RecipeDTOs.UpdateRecipeDto dto)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var isAdmin = User.IsInRole("Admin");

@@ -1,4 +1,4 @@
-﻿﻿using DoAn_API.Data;
+﻿﻿﻿﻿using DoAn_API.Data;
 using DoAn_API.DTOs;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
@@ -28,9 +28,11 @@ namespace DoAn_API.Services
                     Title = r.Title,
                     ImageUrl = r.ImageUrl,
                     CookTime = r.CookTime,
+                    Difficulty = r.Difficulty,
                     TotalCalories = r.TotalCalories,
                     AuthorName = r.User != null ? (r.User.FullName ?? r.User.UserName) : "Ẩn danh",
-                    AuthorAvatarUrl = r.User != null ? r.User.AvatarUrl : null
+                    AuthorAvatarUrl = r.User != null ? r.User.AvatarUrl : null,
+                    UserId = r.UserId
                 })
                 .ToListAsync();
 
@@ -43,7 +45,8 @@ namespace DoAn_API.Services
                     ImageUrl = t.ImageUrl,
                     AuthorName = t.User != null ? (t.User.FullName ?? t.User.UserName) : "Ẩn danh",
                     AuthorAvatarUrl = t.User != null ? t.User.AvatarUrl : null,
-                    CreatedAt = t.CreatedAt
+                    CreatedAt = t.CreatedAt,
+                    UserId = t.UserId
                 })
                 .ToListAsync();
 
@@ -57,7 +60,7 @@ namespace DoAn_API.Services
                 .Select(r => new MyRecipeItemDto
                 {
                     Id = r.Id, Title = r.Title, Description = r.Description, ImageUrl = r.ImageUrl,
-                    CookTime = r.CookTime, TotalCalories = r.TotalCalories, Status = (int)r.Status,
+                    CookTime = r.CookTime, Difficulty = r.Difficulty, TotalCalories = r.TotalCalories, Status = (int)r.Status,
                     CreatedAt = r.CreatedAt, VoteCount = r.VoteCount, SaveCount = r.SaveCount
                 }).ToListAsync();
 
@@ -83,7 +86,7 @@ namespace DoAn_API.Services
                 .Select(r => new MyRecipeItemDto
                 {
                     Id = r.Id, Title = r.Title, Description = r.Description, ImageUrl = r.ImageUrl,
-                    CookTime = r.CookTime, TotalCalories = r.TotalCalories, Status = (int)r.Status,
+                    CookTime = r.CookTime, Difficulty = r.Difficulty, TotalCalories = r.TotalCalories, Status = (int)r.Status,
                     CreatedAt = r.CreatedAt, VoteCount = r.VoteCount, SaveCount = r.SaveCount
                 }).ToListAsync();
 

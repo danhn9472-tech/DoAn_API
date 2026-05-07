@@ -1,4 +1,5 @@
-﻿using DoAn_API.Data;
+﻿﻿using DoAn_API.Data;
+using DoAn_API.DTOs;
 using DoAn_API.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
@@ -14,6 +15,42 @@ namespace DoAn_API.Services
         {
             _context = context;
             _cache = cache;
+        }
+
+        public async Task<object> CalculateNutritionFromIngredientsAsync(List<IngredientItemDto> ingredients)
+        {
+            if (ingredients == null || !ingredients.Any()) return null;
+
+            var tempRecipe = new Recipe
+            {
+                RecipeIngredients = ingredients.Select(i => new RecipeIngredient
+                {
+                    IngredientId = i.IngredientId,
+                    Amount = i.Amount,
+                    Unit = i.Unit
+                }).ToList()
+            };
+
+            await CalculateTotalNutritionAsync(tempRecipe);
+
+            return new
+            {
+                calories = tempRecipe.TotalCalories,
+                protein = tempRecipe.TotalProtein,
+                fat = tempRecipe.TotalFat,
+                carbs = tempRecipe.TotalCarbs
+            };
+        }
+
+        public async Task<object> SearchIngredientsAsync(string term)
+        {
+            if (string.IsNullOrWhiteSpace(term)) return new List<string>();
+
+            return await _context.IngredientNutritions
+                .Where(i => i.Name.ToLower().Contains(term.ToLower()))
+                .Select(i => new { Id = i.Id, Name = i.Name })
+                .Take(10)
+                .ToListAsync();
         }
 
         public async Task CalculateTotalNutritionAsync(Recipe recipe)
@@ -34,13 +71,27 @@ namespace DoAn_API.Services
 
             foreach (var item in recipe.RecipeIngredients)
             {
-                var nutrition = allNutritions.FirstOrDefault(n => n.Name.Equals(item.Ingredient.Name, StringComparison.OrdinalIgnoreCase));
+                IngredientNutrition nutrition = null;
 
-                if (nutrition == null)
+                // Nếu đối tượng Ingredient tồn tại (khi Include từ DB)
+                if (item.Ingredient != null && !string.IsNullOrEmpty(item.Ingredient.Name))
                 {
-                    nutrition = allNutritions.FirstOrDefault(n =>
-                        item.Ingredient.Name.ToLower().Contains(n.Name.ToLower()) ||
-                        n.Name.ToLower().Contains(item.Ingredient.Name.ToLower()));
+                    string ingredientName = item.Ingredient.Name;
+                    nutrition = allNutritions.FirstOrDefault(n => n.Name.Equals(ingredientName, StringComparison.OrdinalIgnoreCase));
+
+                    if (nutrition == null)
+                    {
+                        // Rút ToLower() ra ngoài để tránh bị khởi tạo lại nhiều lần trong vòng lặp LINQ
+                        string lowerIngredientName = ingredientName.ToLower();
+                        nutrition = allNutritions.FirstOrDefault(n =>
+                            lowerIngredientName.Contains(n.Name.ToLower()) ||
+                            n.Name.ToLower().Contains(lowerIngredientName));
+                    }
+                }
+                else
+                {
+                    // Fallback khi item.Ingredient bị null (Ví dụ: tempRecipe truyền từ frontend chỉ có IngredientId)
+                    nutrition = allNutritions.FirstOrDefault(n => n.Id == item.IngredientId);
                 }
 
                 if (nutrition != null)

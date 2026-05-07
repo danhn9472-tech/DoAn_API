@@ -12,5 +12,6 @@ namespace DoAn_API.Services
         Task<ToggleResultDto> ToggleSaveAsync(string itemType, int itemId, string userId);
         Task ReportCommentAsync(int commentId, string reason, string userId);
         Task ReportPostAsync(string itemType, int itemId, string reason, string userId);
+        Task<(bool IsVoted, bool IsSaved)> CheckStatusAsync(string itemType, int itemId, string userId);
     }
 }
