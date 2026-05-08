@@ -27,14 +27,14 @@ namespace DoAn_API.Services
 
             if (itemType == "recipe")
             {
-                var recipe = await _context.Recipes.FindAsync(itemId);
-                if (recipe == null) throw new KeyNotFoundException("Công thức không tồn tại");
+                var recipe = await _context.Recipes.FirstOrDefaultAsync(r => r.Id == itemId && !r.IsDeleted);
+                if (recipe == null) throw new KeyNotFoundException("Công thức không tồn tại hoặc đã bị xóa");
                 postOwnerId = recipe.UserId; postTitle = recipe.Title;
             }
             else if (itemType == "tip")
             {
-                var tip = await _context.Tips.FindAsync(itemId);
-                if (tip == null) throw new KeyNotFoundException("Tip không tồn tại");
+                var tip = await _context.Tips.FirstOrDefaultAsync(t => t.Id == itemId && !t.IsDeleted);
+                if (tip == null) throw new KeyNotFoundException("Tip không tồn tại hoặc đã bị xóa");
                 postOwnerId = tip.UserId; postTitle = tip.Title;
             }
 
@@ -99,8 +99,7 @@ namespace DoAn_API.Services
             _context.Comments.Add(comment);
             await _context.SaveChangesAsync();
 
-            // Gửi thông báo (Vì EF Core TPH, bảng Post lưu cả Recipe và Tip, ta tìm thẳng bằng PostId)
-            var post = await _context.Posts.FindAsync(dto.PostId);
+            var post = await _context.Posts.FirstOrDefaultAsync(p => p.Id == dto.PostId && !p.IsDeleted);
             
             if (post != null && post.UserId != userId)
             {
@@ -123,7 +122,7 @@ namespace DoAn_API.Services
         public async Task<IEnumerable<CommentResponseDto>> GetCommentsAsync(int itemId)
         {
             return await _context.Comments
-                .Where(c => c.PostId == itemId)
+                .Where(c => c.PostId == itemId && !c.IsDeleted)
                 .Include(c => c.User)
                 .OrderByDescending(c => c.CreatedAt)
                 .Select(c => new CommentResponseDto
@@ -142,11 +141,11 @@ namespace DoAn_API.Services
         {
             if (itemType == "recipe")
             {
-                if (!await _context.Recipes.AnyAsync(r => r.Id == itemId)) throw new KeyNotFoundException("Công thức không tồn tại");
+                if (!await _context.Recipes.AnyAsync(r => r.Id == itemId && !r.IsDeleted)) throw new KeyNotFoundException("Công thức không tồn tại hoặc đã bị xóa");
             }
             else if (itemType == "tip")
             {
-                if (!await _context.Tips.AnyAsync(t => t.Id == itemId)) throw new KeyNotFoundException("Tip không tồn tại");
+                if (!await _context.Tips.AnyAsync(t => t.Id == itemId && !t.IsDeleted)) throw new KeyNotFoundException("Tip không tồn tại hoặc đã bị xóa");
             }
 
             var activity = await _context.UserActivities.FirstOrDefaultAsync(x => x.UserId == userId && x.PostId == itemId);
@@ -189,8 +188,8 @@ namespace DoAn_API.Services
 
         public async Task ReportCommentAsync(int commentId, string reason, string userId)
         {
-            var comment = await _context.Comments.FindAsync(commentId);
-            if (comment == null) throw new KeyNotFoundException("Bình luận không tồn tại.");
+            var comment = await _context.Comments.FirstOrDefaultAsync(c => c.Id == commentId && !c.IsDeleted);
+            if (comment == null) throw new KeyNotFoundException("Bình luận không tồn tại hoặc đã bị xóa.");
 
             var existingReport = await _context.CommentReports
                 .FirstOrDefaultAsync(r => r.CommentId == commentId && r.UserId == userId);
@@ -214,10 +213,10 @@ namespace DoAn_API.Services
             int? recipeId = itemType == "recipe" ? itemId : null;
             int? tipId = itemType == "tip" ? itemId : null;
 
-            if (recipeId.HasValue && !await _context.Recipes.AnyAsync(r => r.Id == recipeId))
-                throw new KeyNotFoundException("Công thức không tồn tại.");
-            if (tipId.HasValue && !await _context.Tips.AnyAsync(t => t.Id == tipId))
-                throw new KeyNotFoundException("Mẹo vặt không tồn tại.");
+            if (recipeId.HasValue && !await _context.Recipes.AnyAsync(r => r.Id == recipeId && !r.IsDeleted))
+                throw new KeyNotFoundException("Công thức không tồn tại hoặc đã bị xóa.");
+            if (tipId.HasValue && !await _context.Tips.AnyAsync(t => t.Id == tipId && !t.IsDeleted))
+                throw new KeyNotFoundException("Mẹo vặt không tồn tại hoặc đã bị xóa.");
 
             var existingReport = await _context.PostReports
                 .FirstOrDefaultAsync(r => r.UserId == userId && r.RecipeId == recipeId && r.TipId == tipId);

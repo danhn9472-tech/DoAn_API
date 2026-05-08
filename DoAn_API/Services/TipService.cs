@@ -25,7 +25,7 @@ namespace DoAn_API.Services
 
         public async Task<TipDTOs.PaginatedTipResponseDto> GetTipsAsync(int page, int pageSize)
         {
-            var query = _context.Tips.Where(t => t.Status == PostStatus.Approved);
+            var query = _context.Tips.Where(t => t.Status == PostStatus.Approved && !t.IsDeleted);
 
             var totalItems = await query.CountAsync();
 
@@ -62,7 +62,7 @@ namespace DoAn_API.Services
 
         public async Task<TipDTOs.TipResponseDto> GetTipByIdAsync(int id)
         {
-            var tip = await _context.Tips.Include(t => t.User).FirstOrDefaultAsync(t => t.Id == id);
+            var tip = await _context.Tips.Include(t => t.User).FirstOrDefaultAsync(t => t.Id == id && !t.IsDeleted);
             if (tip == null) return null;
 
             return new TipDTOs.TipResponseDto
@@ -78,7 +78,7 @@ namespace DoAn_API.Services
         public async Task<List<TipDTOs.TopTipDto>> GetTopTipsAsync(int count)
         {
             return await _context.Tips
-                .Where(t => t.Status == PostStatus.Approved)
+                .Where(t => t.Status == PostStatus.Approved && !t.IsDeleted)
                 .Include(t => t.User)
                 .OrderByDescending(t => t.CreatedAt)
                 .Take(count)

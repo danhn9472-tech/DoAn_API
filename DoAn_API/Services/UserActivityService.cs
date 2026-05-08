@@ -21,7 +21,7 @@ namespace DoAn_API.Services
             var result = new SavedItemsDto();
 
             result.SavedRecipes = await _context.Recipes
-                .Where(r => r.Activities.Any(a => a.UserId == userId && a.IsSaved))
+                .Where(r => r.Activities.Any(a => a.UserId == userId && a.IsSaved) && !r.IsDeleted)
                 .Select(r => new SavedRecipeDto
                 {
                     Id = r.Id,
@@ -37,7 +37,7 @@ namespace DoAn_API.Services
                 .ToListAsync();
 
             result.SavedTips = await _context.Tips
-                .Where(t => t.Activities.Any(a => a.UserId == userId && a.IsSaved))
+                .Where(t => t.Activities.Any(a => a.UserId == userId && a.IsSaved) && !t.IsDeleted)
                 .Select(t => new SavedTipDto
                 {
                     Id = t.Id,
@@ -56,7 +56,7 @@ namespace DoAn_API.Services
         public async Task<MyPostsDto> GetMyPostsAsync(string userId)
         {
             var recipes = await _context.Recipes
-                .Where(r => r.UserId == userId)
+                .Where(r => r.UserId == userId && !r.IsDeleted)
                 .Select(r => new MyRecipeItemDto
                 {
                     Id = r.Id, Title = r.Title, Description = r.Description, ImageUrl = r.ImageUrl,
@@ -65,7 +65,7 @@ namespace DoAn_API.Services
                 }).ToListAsync();
 
             var tips = await _context.Tips
-                .Where(t => t.UserId == userId)
+                .Where(t => t.UserId == userId && !t.IsDeleted)
                 .Select(t => new MyTipItemDto
                 {
                     Id = t.Id, Title = t.Title, Content = t.Content, ImageUrl = t.ImageUrl,
@@ -82,7 +82,7 @@ namespace DoAn_API.Services
             if (user == null) throw new KeyNotFoundException("Không tìm thấy người dùng.");
 
             var recipes = await _context.Recipes
-                .Where(r => r.UserId == userId && r.Status == Entities.Enums.PostStatus.Approved)
+                .Where(r => r.UserId == userId && r.Status == Entities.Enums.PostStatus.Approved && !r.IsDeleted)
                 .Select(r => new MyRecipeItemDto
                 {
                     Id = r.Id, Title = r.Title, Description = r.Description, ImageUrl = r.ImageUrl,
@@ -91,7 +91,7 @@ namespace DoAn_API.Services
                 }).ToListAsync();
 
             var tips = await _context.Tips
-                .Where(t => t.UserId == userId && t.Status == Entities.Enums.PostStatus.Approved)
+                .Where(t => t.UserId == userId && t.Status == Entities.Enums.PostStatus.Approved && !t.IsDeleted)
                 .Select(t => new MyTipItemDto
                 {
                     Id = t.Id, Title = t.Title, Content = t.Content, ImageUrl = t.ImageUrl,

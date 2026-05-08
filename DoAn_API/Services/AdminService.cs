@@ -31,7 +31,7 @@ namespace DoAn_API.Services
         public async Task<IEnumerable<AdminDTOs.PendingReportDto>> GetPendingCommentReportsAsync()
         {
             return await _context.CommentReports
-                .Where(r => r.Status == ReportStatus.Pending)
+                .Where(r => r.Status == ReportStatus.Pending && !r.Comment.IsDeleted)
                 .Include(r => r.User)
                 .Include(r => r.Comment).ThenInclude(c => c.User)
                 .Select(r => new AdminDTOs.PendingReportDto
@@ -98,7 +98,7 @@ namespace DoAn_API.Services
         public async Task<IEnumerable<AdminDTOs.PendingPostReportDto>> GetPendingPostReportsAsync()
         {
             return await _context.PostReports
-                .Where(r => r.Status == ReportStatus.Pending)
+                .Where(r => r.Status == ReportStatus.Pending && ((r.RecipeId != null && !r.Recipe.IsDeleted) || (r.TipId != null && !r.Tip.IsDeleted)))
                 .Include(r => r.User)
                 .Include(r => r.Recipe).ThenInclude(rc => rc.User)
                 .Include(r => r.Tip).ThenInclude(t => t.User)
@@ -166,10 +166,10 @@ namespace DoAn_API.Services
             return new DashboardStatDto
             {
                 TotalUsers = await _context.Users.CountAsync(),
-                TotalRecipes = await _context.Recipes.CountAsync(),
-                TotalTips = await _context.Tips.CountAsync(),
-                PendingPosts = await _context.Recipes.CountAsync(r => r.Status == PostStatus.Pending)
-                             + await _context.Tips.CountAsync(t => t.Status == PostStatus.Pending)
+                TotalRecipes = await _context.Recipes.CountAsync(r => !r.IsDeleted),
+                TotalTips = await _context.Tips.CountAsync(t => !t.IsDeleted),
+                PendingPosts = await _context.Recipes.CountAsync(r => r.Status == PostStatus.Pending && !r.IsDeleted)
+                             + await _context.Tips.CountAsync(t => t.Status == PostStatus.Pending && !t.IsDeleted)
             };
         }
 
@@ -183,13 +183,13 @@ namespace DoAn_API.Services
 
             // Sử dụng GroupBy trực tiếp trên DB nhờ Entity Framework
             var recipesGrouped = await _context.Recipes
-                .Where(r => r.CreatedAt >= startDate)
+                .Where(r => r.CreatedAt >= startDate && !r.IsDeleted)
                 .GroupBy(r => new { r.CreatedAt.Year, r.CreatedAt.Month })
                 .Select(g => new { g.Key.Year, g.Key.Month, Count = g.Count() })
                 .ToListAsync();
 
             var tipsGrouped = await _context.Tips
-                .Where(t => t.CreatedAt >= startDate)
+                .Where(t => t.CreatedAt >= startDate && !t.IsDeleted)
                 .GroupBy(t => new { t.CreatedAt.Year, t.CreatedAt.Month })
                 .Select(g => new { g.Key.Year, g.Key.Month, Count = g.Count() })
                 .ToListAsync();
@@ -257,7 +257,7 @@ namespace DoAn_API.Services
         public async Task<IEnumerable<PendingPostDto>> GetPendingPostsAsync()
         {
             var recipes = await _context.Recipes
-                .Where(r => r.Status == PostStatus.Pending)
+                .Where(r => r.Status == PostStatus.Pending && !r.IsDeleted)
                 .Select(r => new PendingPostDto
                 {
                     Id = r.Id,
@@ -271,7 +271,7 @@ namespace DoAn_API.Services
                 }).ToListAsync();
 
             var tips = await _context.Tips
-                .Where(t => t.Status == PostStatus.Pending)
+                .Where(t => t.Status == PostStatus.Pending && !t.IsDeleted)
                 .Select(t => new PendingPostDto
                 {
                     Id = t.Id,

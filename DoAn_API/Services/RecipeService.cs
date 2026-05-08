@@ -28,7 +28,7 @@ namespace DoAn_API.Services
         public async Task<RecipeDTOs.PaginatedRecipeResponseDto> GetRecipesAsync(int page, int pageSize)
         {
             var query = _context.Recipes
-                .Where(r => r.Status == PostStatus.Approved);
+                .Where(r => r.Status == PostStatus.Approved && !r.IsDeleted);
 
             var totalItems = await query.CountAsync();
 
@@ -79,7 +79,7 @@ namespace DoAn_API.Services
                 .Include(r => r.RecipeSteps)
                 .Include(r => r.User)
                 .Include(r => r.RecipeCategories).ThenInclude(rc => rc.Category)
-                .FirstOrDefaultAsync(r => r.Id == id);
+                .FirstOrDefaultAsync(r => r.Id == id && !r.IsDeleted);
 
             if (recipe == null) return null;
 
@@ -110,7 +110,7 @@ namespace DoAn_API.Services
         public async Task<List<RecipeDTOs.TopRecipeDto>> GetTopRecipesAsync(int count)
         {
             return await _context.Recipes
-                .Where(r => r.Status == PostStatus.Approved)
+                .Where(r => r.Status == PostStatus.Approved && !r.IsDeleted)
                 .Include(r => r.User)
                 .OrderByDescending(r => r.Id)
                 .Take(count)
@@ -258,7 +258,7 @@ namespace DoAn_API.Services
         public async Task<IEnumerable<RecipeDTOs.RecipeListItemDto>> FilterByCategoriesAsync(List<int> categoryIds)
         {
             var query = _context.Recipes
-                .Where(r => r.Status == PostStatus.Approved)
+                .Where(r => r.Status == PostStatus.Approved && !r.IsDeleted)
                 .AsQueryable();
 
             if (categoryIds != null && categoryIds.Any())
