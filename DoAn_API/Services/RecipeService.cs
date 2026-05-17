@@ -43,6 +43,7 @@ namespace DoAn_API.Services
                 {
                     Id = r.Id,
                     Title = r.Title,
+                    Slug = r.Slug,
                     Description = r.Description,
                     ImageUrl = r.ImageUrl,
                     CookTime = r.CookTime,
@@ -87,6 +88,7 @@ namespace DoAn_API.Services
             {
                 Id = recipe.Id,
                 Title = recipe.Title,
+                Slug = recipe.Slug,
                 Description = recipe.Description,
                 ImageUrl = recipe.ImageUrl,
                 CookTime = recipe.CookTime,
@@ -118,6 +120,7 @@ namespace DoAn_API.Services
                 {
                     Id = r.Id,
                     Title = r.Title,
+                    Slug = r.Slug,
                     Description = r.Description,
                     ImageUrl = r.ImageUrl,
                     CookTime = r.CookTime,
@@ -163,6 +166,11 @@ namespace DoAn_API.Services
                 await _nutritionService.CalculateTotalNutritionAsync(recipe);
                 _context.Recipes.Add(recipe);
                 await _context.SaveChangesAsync();
+
+                // Cập nhật Slug chứa ID ở cuối để chuẩn SEO và chống gãy URL
+                recipe.Slug = DoAn_API.Utilities.SlugHelper.GenerateSlug(recipe.Title) + "-" + recipe.Id;
+                await _context.SaveChangesAsync();
+
                 await transaction.CommitAsync();
 
                 return recipe.Id;
@@ -184,8 +192,14 @@ namespace DoAn_API.Services
 
             if (recipe == null) throw new KeyNotFoundException("Không tìm thấy công thức.");
             if (recipe.UserId != userId && !isAdmin) throw new UnauthorizedAccessException("Bạn không có quyền chỉnh sửa công thức này.");
+    
+            // Nếu tiêu đề thay đổi hoặc bài viết cũ chưa có Slug -> Tạo lại Slug mới (vẫn giữ ID ở đuôi)
+            if (recipe.Title != dto.Title || string.IsNullOrEmpty(recipe.Slug))
+            {
+                recipe.Title = dto.Title;
+                recipe.Slug = DoAn_API.Utilities.SlugHelper.GenerateSlug(dto.Title) + "-" + recipe.Id;
+            }
 
-            recipe.Title = dto.Title;
             recipe.Description = dto.Description;
             recipe.CookTime = dto.CookTime;
             recipe.Difficulty = (DifficultyLevel)dto.Difficulty;
@@ -275,6 +289,7 @@ namespace DoAn_API.Services
                 {
                     Id = r.Id,
                     Title = r.Title,
+                    Slug = r.Slug,
                     Description = r.Description,
                     ImageUrl = r.ImageUrl,
                     CookTime = r.CookTime,

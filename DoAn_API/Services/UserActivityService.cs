@@ -1,4 +1,4 @@
-﻿﻿﻿﻿using DoAn_API.Data;
+﻿﻿﻿﻿﻿﻿using DoAn_API.Data;
 using DoAn_API.DTOs;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
@@ -26,6 +26,7 @@ namespace DoAn_API.Services
                 {
                     Id = r.Id,
                     Title = r.Title,
+                    Slug = r.Slug,
                     ImageUrl = r.ImageUrl,
                     CookTime = r.CookTime,
                     Difficulty = r.Difficulty,
@@ -42,6 +43,7 @@ namespace DoAn_API.Services
                 {
                     Id = t.Id,
                     Title = t.Title,
+                    Slug = t.Slug,
                     ImageUrl = t.ImageUrl,
                     AuthorName = t.User != null ? (t.User.FullName ?? t.User.UserName) : "Ẩn danh",
                     AuthorAvatarUrl = t.User != null ? t.User.AvatarUrl : null,
@@ -59,7 +61,7 @@ namespace DoAn_API.Services
                 .Where(r => r.UserId == userId && !r.IsDeleted)
                 .Select(r => new MyRecipeItemDto
                 {
-                    Id = r.Id, Title = r.Title, Description = r.Description, ImageUrl = r.ImageUrl,
+                    Id = r.Id, Title = r.Title, Slug = r.Slug, Description = r.Description, ImageUrl = r.ImageUrl,
                     CookTime = r.CookTime, Difficulty = r.Difficulty, TotalCalories = r.TotalCalories, Status = (int)r.Status,
                     CreatedAt = r.CreatedAt, VoteCount = r.VoteCount, SaveCount = r.SaveCount
                 }).ToListAsync();
@@ -68,7 +70,7 @@ namespace DoAn_API.Services
                 .Where(t => t.UserId == userId && !t.IsDeleted)
                 .Select(t => new MyTipItemDto
                 {
-                    Id = t.Id, Title = t.Title, Content = t.Content, ImageUrl = t.ImageUrl,
+                    Id = t.Id, Title = t.Title, Slug = t.Slug, Content = t.Content, ImageUrl = t.ImageUrl,
                     Status = (int)t.Status, CreatedAt = t.CreatedAt, VoteCount = t.VoteCount,
                     SaveCount = t.SaveCount
                 }).ToListAsync();
@@ -85,7 +87,7 @@ namespace DoAn_API.Services
                 .Where(r => r.UserId == userId && r.Status == Entities.Enums.PostStatus.Approved && !r.IsDeleted)
                 .Select(r => new MyRecipeItemDto
                 {
-                    Id = r.Id, Title = r.Title, Description = r.Description, ImageUrl = r.ImageUrl,
+                    Id = r.Id, Title = r.Title, Slug = r.Slug, Description = r.Description, ImageUrl = r.ImageUrl,
                     CookTime = r.CookTime, Difficulty = r.Difficulty, TotalCalories = r.TotalCalories, Status = (int)r.Status,
                     CreatedAt = r.CreatedAt, VoteCount = r.VoteCount, SaveCount = r.SaveCount
                 }).ToListAsync();
@@ -94,7 +96,7 @@ namespace DoAn_API.Services
                 .Where(t => t.UserId == userId && t.Status == Entities.Enums.PostStatus.Approved && !t.IsDeleted)
                 .Select(t => new MyTipItemDto
                 {
-                    Id = t.Id, Title = t.Title, Content = t.Content, ImageUrl = t.ImageUrl,
+                    Id = t.Id, Title = t.Title, Slug = t.Slug, Content = t.Content, ImageUrl = t.ImageUrl,
                     Status = (int)t.Status, CreatedAt = t.CreatedAt, VoteCount = t.VoteCount,
                     SaveCount = t.SaveCount
                 }).ToListAsync();

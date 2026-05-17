@@ -15,11 +15,10 @@ namespace DoAn_API.Controllers
             _searchService = searchService;
         }
 
-        // GET: api/Search?keyword=pho
         [HttpGet]
-        public async Task<IActionResult> Search([FromQuery] string keyword)
+        public async Task<IActionResult> Search([FromQuery] string? keyword, [FromQuery] int page = 1, [FromQuery] int pageSize = 10)
         {
-            var results = await _searchService.SearchAsync(keyword);
+            var results = await _searchService.SearchAsync(keyword ?? string.Empty, page, pageSize);
             return Ok(results);
         }
     }

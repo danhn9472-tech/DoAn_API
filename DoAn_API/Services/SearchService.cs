@@ -2,6 +2,7 @@ using DoAn_API.Data;
 using DoAn_API.DTOs;
 using DoAn_API.Entities.Enums;
 using Microsoft.EntityFrameworkCore;
+using System;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -16,28 +17,38 @@ namespace DoAn_API.Services
             _context = context;
         }
 
-        public async Task<SearchResultDto> SearchAsync(string keyword)
+        public async Task<SearchResultDto> SearchAsync(string keyword, int page, int pageSize)
         {
-            var result = new SearchResultDto();
+            var result = new SearchResultDto 
+            { 
+                CurrentPage = page, 
+                PageSize = pageSize 
+            };
 
             if (string.IsNullOrWhiteSpace(keyword))
             {
-                return result; // Trả về đối tượng có 2 danh sách rỗng
+                return result;
             }
 
             keyword = keyword.Trim().ToLower();
 
-            // 1. Tìm kiếm trong bảng Recipes theo Title
-            result.Recipes = await _context.Recipes
+            var recipeQuery = _context.Recipes
                 .Where(r => r.Status == PostStatus.Approved && !r.IsDeleted)
-                .Where(r => r.Title.ToLower().Contains(keyword))
+                .Where(r => r.Title.Contains(keyword));
+
+            result.TotalRecipes = await recipeQuery.CountAsync();
+
+            result.Recipes = await recipeQuery
                 .Include(r => r.User)
                 .Include(r => r.RecipeCategories).ThenInclude(rc => rc.Category)
                 .OrderByDescending(r => r.CreatedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .Select(r => new RecipeDTOs.RecipeListItemDto
                 {
                     Id = r.Id,
                     Title = r.Title,
+                    Slug = r.Slug,
                     Description = r.Description,
                     ImageUrl = r.ImageUrl,
                     CookTime = r.CookTime,
@@ -57,16 +68,22 @@ namespace DoAn_API.Services
                 })
                 .ToListAsync();
 
-            // 2. Tìm kiếm trong bảng Tips theo Title
-            result.Tips = await _context.Tips
+            var tipQuery = _context.Tips
                 .Where(t => t.Status == PostStatus.Approved && !t.IsDeleted)
-                .Where(t => t.Title.ToLower().Contains(keyword))
+                .Where(t => t.Title.Contains(keyword));
+
+            result.TotalTips = await tipQuery.CountAsync();
+
+            result.Tips = await tipQuery
                 .Include(t => t.User)
                 .OrderByDescending(t => t.CreatedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .Select(t => new TipDTOs.TipResponseDto
                 {
                     Id = t.Id,
                     Title = t.Title,
+                    Slug = t.Slug,
                     Content = t.Content,
                     ImageUrl = t.ImageUrl,
                     CreatedAt = t.CreatedAt,
@@ -78,6 +95,9 @@ namespace DoAn_API.Services
                     AuthorAvatarUrl = t.User != null ? t.User.AvatarUrl : null
                 })
                 .ToListAsync();
+
+            var maxItems = Math.Max(result.TotalRecipes, result.TotalTips);
+            result.TotalPages = (int)Math.Ceiling(maxItems / (double)pageSize);
 
             return result;
         }

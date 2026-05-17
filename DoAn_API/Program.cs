@@ -117,8 +117,8 @@ builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IUploadService, UploadService>();
 builder.Services.AddScoped<IAccountService, AccountService>();
-builder.Services.AddScoped<IPostDeletionService, PostDeletionService>(); // <-- Thêm dòng này
-
+builder.Services.AddScoped<IPostDeletionService, PostDeletionService>(); 
+builder.Services.AddScoped<ISearchService, SearchService>();
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())

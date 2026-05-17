@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿using DoAn_API.Data;
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿using DoAn_API.Data;
 using DoAn_API.DTOs;
 using DoAn_API.Entities;
 using DoAn_API.Entities.Enums;
@@ -60,16 +60,14 @@ namespace DoAn_API.Services
 
             if (deleteComment && report.Comment != null)
             {
-                // Thực hiện Soft Delete thay vì xóa vật lý
                 report.Comment.IsDeleted = true;
                 report.Comment.DeletedAt = System.DateTime.UtcNow;
 
-                // Lấy tất cả các báo cáo liên quan đến Comment này
+                // Lấy tất cả báo cáo liên quan đến Comment này
                 var relatedReports = await _context.CommentReports
                     .Where(r => r.CommentId == report.CommentId)
                     .ToListAsync();
                 
-                // Cập nhật trạng thái tất cả báo cáo liên quan thành Resolved (đã xử lý)
                 foreach (var relReport in relatedReports)
                 {
                     relReport.Status = ReportStatus.Resolved;
@@ -81,7 +79,7 @@ namespace DoAn_API.Services
                 report.Status = ReportStatus.Dismissed;
             }
 
-            // Thực hiện khóa User nếu được yêu cầu
+            //khóa User
             if (banUser && !string.IsNullOrEmpty(authorId))
             {
                 var user = await _userManager.FindByIdAsync(authorId);
@@ -108,6 +106,7 @@ namespace DoAn_API.Services
                     ReporterName = r.User.UserName,
                     Reason = r.Reason,
                     PostTitle = r.RecipeId != null ? r.Recipe.Title : r.Tip.Title,
+                    Slug = r.RecipeId != null ? r.Recipe.Slug : r.Tip.Slug,
                     PostType = r.RecipeId != null ? "Recipe" : "Tip",
                     PostAuthor = r.RecipeId != null ? r.Recipe.User.UserName : r.Tip.User.UserName,
                     PostAuthorAvatarUrl = r.RecipeId != null ? r.Recipe.User.AvatarUrl : r.Tip.User.AvatarUrl,
@@ -262,6 +261,7 @@ namespace DoAn_API.Services
                 {
                     Id = r.Id,
                     Title = r.Title,
+                    Slug = r.Slug,
                     AuthorName = r.User != null ? (r.User.FullName ?? r.User.UserName) : "Ẩn danh",
                     CreatedAt = r.CreatedAt,
                     Type = "Recipe",
@@ -276,6 +276,7 @@ namespace DoAn_API.Services
                 {
                     Id = t.Id,
                     Title = t.Title,
+                    Slug = t.Slug,
                     AuthorName = t.User != null ? (t.User.FullName ?? t.User.UserName) : "Ẩn danh",
                     CreatedAt = t.CreatedAt,
                     Type = "Tip",
@@ -360,6 +361,7 @@ namespace DoAn_API.Services
                 {
                     Id = r.Id,
                     Title = r.Title,
+                    Slug = r.Slug,
                     AuthorName = r.User != null ? (r.User.FullName ?? r.User.UserName) : "Ẩn danh",
                     CreatedAt = r.DeletedAt ?? r.CreatedAt, // Hiển thị ngày bị xóa thay vì ngày tạo
                     Type = "Recipe",
@@ -375,6 +377,7 @@ namespace DoAn_API.Services
                 {
                     Id = t.Id,
                     Title = t.Title,
+                    Slug = t.Slug,
                     AuthorName = t.User != null ? (t.User.FullName ?? t.User.UserName) : "Ẩn danh",
                     CreatedAt = t.DeletedAt ?? t.CreatedAt,
                     Type = "Tip",

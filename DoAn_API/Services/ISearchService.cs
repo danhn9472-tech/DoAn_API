@@ -5,6 +5,6 @@ namespace DoAn_API.Services
 {
     public interface ISearchService
     {
-        Task<SearchResultDto> SearchAsync(string keyword);
+        Task<SearchResultDto> SearchAsync(string keyword, int page, int pageSize);
     }
 }

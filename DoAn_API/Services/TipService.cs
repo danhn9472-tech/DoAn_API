@@ -38,6 +38,7 @@ namespace DoAn_API.Services
                 {
                     Id = t.Id,
                     Title = t.Title,
+                    Slug = t.Slug,
                     Content = t.Content,
                     ImageUrl = t.ImageUrl,
                     CreatedAt = t.CreatedAt,
@@ -67,7 +68,7 @@ namespace DoAn_API.Services
 
             return new TipDTOs.TipResponseDto
             {
-                Id = tip.Id, Title = tip.Title, Content = tip.Content, ImageUrl = tip.ImageUrl,
+                Id = tip.Id, Title = tip.Title, Slug = tip.Slug, Content = tip.Content, ImageUrl = tip.ImageUrl,
                 CreatedAt = tip.CreatedAt, VoteCount = tip.VoteCount, SaveCount = tip.SaveCount,
                 UserId = tip.UserId, Status = tip.Status,
                 AuthorName = tip.User != null ? (tip.User.FullName ?? tip.User.UserName) : "Đầu bếp gia đình",
@@ -86,6 +87,7 @@ namespace DoAn_API.Services
                 {
                     Id = t.Id,
                     Title = t.Title,
+                    Slug = t.Slug,
                     Content = t.Content,
                     ImageUrl = t.ImageUrl,
                     CreatedAt = t.CreatedAt,
@@ -111,6 +113,10 @@ namespace DoAn_API.Services
             _context.Tips.Add(tip);
             await _context.SaveChangesAsync();
 
+            // Cập nhật Slug chứa ID ở cuối để chuẩn SEO và chống gãy URL
+            tip.Slug = DoAn_API.Utilities.SlugHelper.GenerateSlug(tip.Title) + "-" + tip.Id;
+            await _context.SaveChangesAsync();
+
             return tip.Id;
         }
 
@@ -120,7 +126,13 @@ namespace DoAn_API.Services
             if (tip == null) throw new KeyNotFoundException("Không tìm thấy bài viết.");
             if (tip.UserId != userId && !isAdmin) throw new UnauthorizedAccessException("Bạn không có quyền chỉnh sửa bài viết này.");
 
-            tip.Title = dto.Title;
+            // Nếu tiêu đề thay đổi hoặc bài viết cũ chưa có Slug -> Tạo lại Slug mới (vẫn giữ ID ở đuôi)
+            if (tip.Title != dto.Title || string.IsNullOrEmpty(tip.Slug))
+            {
+                tip.Title = dto.Title;
+                tip.Slug = DoAn_API.Utilities.SlugHelper.GenerateSlug(dto.Title) + "-" + tip.Id;
+            }
+
             tip.Content = dto.Content;
             
             // Kiểm tra: Nếu đường dẫn ảnh bị thay đổi -> Xóa ảnh cũ khỏi máy chủ

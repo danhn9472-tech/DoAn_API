@@ -19,6 +19,7 @@ namespace DoAn_API.DTOs
         public class PendingPostReportDto
         {
             public int ReportId { get; set; }
+            public string? Slug { get; set; }
             public string ReporterName { get; set; }
             public string Reason { get; set; }
             public string PostTitle { get; set; }

@@ -10,6 +10,7 @@
     {
         public int Id { get; set; }
         public string Title { get; set; }
+        public string? Slug { get; set; }
         public string? ImageUrl { get; set; }
         public int CookTime { get; set; }
         public DoAn_API.Entities.Enums.DifficultyLevel Difficulty { get; set; }
@@ -23,6 +24,7 @@
     {
         public int Id { get; set; }
         public string Title { get; set; }
+        public string? Slug { get; set; }
         public string? ImageUrl { get; set; }
         public string? AuthorName { get; set; }
         public string? AuthorAvatarUrl { get; set; }

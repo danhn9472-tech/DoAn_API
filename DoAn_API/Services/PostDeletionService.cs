@@ -20,7 +20,7 @@ namespace DoAn_API.Services
         {
             if (post == null) return;
 
-            // --- THỰC HIỆN SOFT DELETE ---
+            // --- SOFT DELETE ---
             post.IsDeleted = true;
             post.DeletedAt = System.DateTime.UtcNow;
             

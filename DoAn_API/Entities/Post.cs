@@ -13,6 +13,9 @@ namespace DoAn_API.Entities
         [StringLength(300)]
         public string Title { get; set; }
 
+        [StringLength(300)]
+        public string? Slug { get; set; }
+
         public string? ImageUrl { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
